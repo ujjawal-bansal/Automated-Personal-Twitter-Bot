@@ -1,0 +1,9 @@
+# Python packages the bot imports. Install with: pip install -r requirements.txt
+google-genai==2.29.0
+tweepy==4.17.0
+Pillow==12.3.0
+requests==2.34.2
+requests-oauthlib==2.0.0
+
+# Not pip packages: Hindi/Urdu shayari cards also need the system text-shaping
+# libraries libraqm and libfribidi. The GitHub workflow installs them with apt.
