@@ -1,0 +1,71 @@
+name: Post to X
+
+on:
+  schedule:
+    # Cron is in UTC (IST minus 5:30). The bot runs every 30 minutes around each
+    # window and only posts once it passes that day's random time (see config.WINDOWS).
+    - cron: "*/30 3-6 * * *"    # morning window, 9:00-11:00 AM IST (+ grace)
+    - cron: "*/30 13-16 * * *"  # evening window, 7:00-9:30 PM IST (+ grace)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run = show the tweet without posting, post-now = post immediately"
+        type: choice
+        options: [dry-run, post-now]
+        default: dry-run
+
+permissions:
+  contents: write  # lets the bot save data/history.json
+
+concurrency:
+  group: post-to-x  # never two runs at once, so no double posts
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install text-shaping libraries (for Hindi/Urdu cards)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libraqm0 libfribidi0
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Run the bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          SCHEDULE_SEED: ${{ secrets.SCHEDULE_SEED }}
+          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python bot.py
+
+      - name: Save image preview (dry runs)
+        if: github.event.inputs.mode == 'dry-run'
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview
+          path: preview/
+          if-no-files-found: ignore
+
+      - name: Save post history
+        if: github.event.inputs.mode != 'dry-run'
+        run: |
+          git config user.name "x-bot"
+          git config user.email "x-bot@users.noreply.github.com"
+          git add data/history.json
+          if git diff --cached --quiet; then echo "Nothing new to save."; exit 0; fi
+          git commit -m "Log post"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push
