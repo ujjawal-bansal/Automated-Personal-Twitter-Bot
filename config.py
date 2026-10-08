@@ -10,6 +10,7 @@ TIMEZONE = "Asia/Kolkata"
 # If you change these, also update the cron lines in .github/workflows/post.yml (UTC).
 WINDOWS = {
     "morning": ("09:00", "11:00"),
+    "afternoon": ("13:00", "15:00"),
     "evening": ("19:00", "21:30"),
 }
 GRACE_MINUTES = 100  # a delayed GitHub run may still post this long after a window ends

@@ -5,6 +5,7 @@ on:
     # Cron is in UTC (IST minus 5:30). The bot runs every 30 minutes around each
     # window and only posts once it passes that day's random time (see config.WINDOWS).
     - cron: "*/30 3-6 * * *"    # morning window, 9:00-11:00 AM IST (+ grace)
+    - cron: "*/30 7-10 * * *"   # afternoon window, 1:00-3:00 PM IST (+ grace)
     - cron: "*/30 13-16 * * *"  # evening window, 7:00-9:30 PM IST (+ grace)
   workflow_dispatch:
     inputs:

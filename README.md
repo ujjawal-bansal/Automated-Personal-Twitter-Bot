@@ -1,6 +1,6 @@
 # Vashu's X Bot
 
-Posts twice a day at random times (once between 9:00–11:00 AM IST, once between 7:00–9:30 PM IST).
+Posts three times a day at random times (once between 9:00–11:00 AM IST, once between 1:00–3:00 PM IST, once between 7:00–9:30 PM IST).
 Each post is either an AI-written tweet from one of five themes (mind, ancient mysteries, prophecy and surveillance, geopolitics, history) or a classic shayari from `content/shayari.json`.
 
 **Images (no AI images, nothing to label):**
@@ -14,9 +14,9 @@ Runs on GitHub Actions. No server, no laptop needs to stay on.
 
 | Piece | Cost |
 |---|---|
-| GitHub Actions | Free. About 500 of the 2,000 free minutes per month, even for a private repo |
+| GitHub Actions | Free. About 750 of the 2,000 free minutes per month, even for a private repo |
 | Gemini API | Free tier, including Google Search for the geopolitics posts |
-| X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$1–1.50/month**. Posts with links cost $0.20 each, so the bot strips links |
+| X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$1.50–2.50/month** at 3 posts a day. Posts with links cost $0.20 each, so the bot strips links |
 | Images | Free. Cards are drawn by the code; Commons images are public domain |
 
 ## Setup (about 20 minutes)
@@ -70,7 +70,7 @@ After that, it runs by itself. If a run ever fails, GitHub emails you.
   ```
   The bot posts each one once before repeating, always with the poet's name and a card. Urdu-script couplets work too.
 - **Images:** in `config.py`, each pillar's `image_chance` (0 to 1) controls how often it tries to attach an image. Set it to 0 to turn images off for that pillar. `card_chance` does the same for shayari cards, and `CARD_SIGNATURE` is the name in the card's footer.
-- **Change posting times:** edit `WINDOWS` in `config.py` *and* the two `cron` lines in `post.yml`. Cron uses UTC, which is IST minus 5:30.
+- **Change posting times:** edit `WINDOWS` in `config.py` *and* the three `cron` lines in `post.yml`. Cron uses UTC, which is IST minus 5:30.
 - **Pause the bot:** Actions tab → Post to X → **⋯ → Disable workflow**.
 - **See what was posted:** `data/history.json`.
 
