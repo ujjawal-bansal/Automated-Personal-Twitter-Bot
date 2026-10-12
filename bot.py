@@ -21,6 +21,7 @@ import config
 
 ROOT = Path(__file__).parent
 HISTORY_FILE = ROOT / "data" / "history.json"
+WEIGHTS_FILE = ROOT / "data" / "weights.json"
 SHAYARI_FILE = ROOT / "content" / "shayari.json"
 PREVIEW_DIR = ROOT / "preview"
 MAX_LEN = 280
@@ -91,11 +92,18 @@ def due_slot(now, history):
 
 # ---------------------------------------------------------------- content
 
+def pillar_weights():
+    """Learned shares from data/weights.json (see learn.py), else the weights in config.py."""
+    learned = load_json(WEIGHTS_FILE, {}).get("shares", {})
+    return {n: learned.get(n, c["weight"]) for n, c in config.PILLARS.items()}
+
+
 def choose_pillar(history, exclude=()):
     recent = [p["pillar"] for p in history["posts"][-2:]]
     names = [n for n in config.PILLARS if n not in recent and n not in exclude]
     names = names or [n for n in config.PILLARS if n not in exclude]
-    return random.choices(names, [config.PILLARS[n]["weight"] for n in names])[0]
+    weights = pillar_weights()
+    return random.choices(names, [weights[n] for n in names])[0]
 
 
 def format_shayari(item):
@@ -269,6 +277,18 @@ def post_to_x(text, image=None):
     return client.create_tweet(text=text, media_ids=media_ids).data["id"]
 
 
+def maybe_learn(history, force=False):
+    """Once a week, piggybacks on a normal run to update the pillar weights.
+    Never blocks posting: any error is printed and the post goes ahead."""
+    import learn
+    try:
+        if force or learn.due(datetime.now(TZ)):
+            learn.run(history)
+            save_history(history)
+    except Exception as e:
+        print(f"Learning skipped this run: {e}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="generate and print, don't post")
@@ -279,6 +299,11 @@ def main():
 
     history = load_json(HISTORY_FILE, {"posts": []})
     now = datetime.now(TZ)
+    if env_flag("LEARN_ONLY"):  # "learn-now" button in GitHub: re-learn, don't post
+        maybe_learn(history, force=True)
+        return
+    if not dry and config.LEARNING.get("enabled") and os.environ.get("X_ACCESS_TOKEN"):
+        maybe_learn(history)
     slot = f"{now:%Y-%m-%d}-manual-{now:%H%M}" if force else due_slot(now, history)
     if not slot:
         return

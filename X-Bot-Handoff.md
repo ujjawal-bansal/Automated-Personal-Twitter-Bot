@@ -93,7 +93,7 @@ Each post comes from one of six **content pillars**. The bot rotates through the
 
 1. **My voice examples:** I paste 15–20 of my own tweets, and they get added to the persona as examples. Biggest quality boost.
 2. **Idea inbox** (`ideas.json`, where I jot rough thoughts and the bot polishes them first) **plus Telegram notifications** for each post.
-3. **Self-learning loop:** a weekly read of my own posts' metrics (about $0.001 each), auto-adjusting pillar weights, plus a weekly report.
+3. **Self-learning loop:** built Oct 2026 (`learn.py`). Weekly, reads own posts' public metrics (Owned Reads, $0.001/post, each post read once 48h after posting), scores pillars vs the account average with recency decay and shrinkage, and moves `data/weights.json` halfway toward the target with an 8% floor and 30% ceiling per pillar. Report in `data/report.md`.
 4. **Polls** (same cost as a post) and a **weekly Sunday thread** (about $0.08–0.10).
 
 Other ideas: a critic/quality pass before posting, calendar-aware posts (Mahashivratri, Navratri, Ghalib's birthday on 27 Dec, Panipat on 14 Jan, solstices), Telegram commands (`/skip`, `/pause`, `/post`), Roman shayari captions.

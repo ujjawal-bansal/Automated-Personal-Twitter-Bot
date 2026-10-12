@@ -17,6 +17,7 @@ Runs on GitHub Actions. No server, no laptop needs to stay on.
 | GitHub Actions | Free. About 750 of the 2,000 free minutes per month, even for a private repo |
 | Gemini API | Free tier, including Google Search for the geopolitics posts |
 | X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$1.50–2.50/month** at 3 posts a day. Posts with links cost $0.20 each, so the bot strips links |
+| Weekly learning | About $0.10/month: reading your own posts' stats is $0.001 per post |
 | Images | Free. Cards are drawn by the code; Commons images are public domain |
 
 ## Setup (about 20 minutes)
@@ -73,6 +74,19 @@ After that, it runs by itself. If a run ever fails, GitHub emails you.
 - **Change posting times:** edit `WINDOWS` in `config.py` *and* the three `cron` lines in `post.yml`. Cron uses UTC, which is IST minus 5:30.
 - **Pause the bot:** Actions tab → Post to X → **⋯ → Disable workflow**.
 - **See what was posted:** `data/history.json`.
+
+## Weekly self-learning
+
+Once a week the bot reads how its own posts did (views, likes, replies, reposts, bookmarks) and adjusts how often each pillar is picked. Pillars that land well get a bit more airtime and weaker ones a bit less, but the feed stays a mix:
+
+- every pillar keeps at least 8% of posts and none can go above 30% (`floor` and `ceiling` in `LEARNING` in `config.py`)
+- each week the shares move only halfway toward the new target, so one lucky week can't swing everything
+- a pillar needs at least 3 measured posts before it's judged, and one viral post can't carry a whole pillar
+- a pillar never repeats within 3 posts
+
+Read the result in `data/report.md`, which has a table per pillar and the week's best posts. To re-learn right away: Actions → Post to X → Run workflow → mode **learn-now**. To switch learning off, set `"enabled": False` in `LEARNING`, and delete `data/weights.json` to go back to the weights in `config.py`.
+
+Cost: reading your own posts is $0.001 per post, and each post is read once, two days after it goes out. That's about $0.10/month.
 
 ## Running it on your own computer (optional)
 

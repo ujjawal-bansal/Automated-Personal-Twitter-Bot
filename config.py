@@ -151,6 +151,21 @@ PILLARS = {
     "shayari": {"weight": 2, "card_chance": 1.0},  # from content/shayari.json, posted with a designed card
 }
 
+# Weekly self-learning (learn.py). Once a week the bot reads how its own posts did and
+# shifts how often each pillar is picked. The guardrails keep the feed a mix:
+LEARNING = {
+    "enabled": True,
+    "every_days": 7,      # how often it re-learns
+    "floor": 0.08,        # every pillar keeps at least 8% of posts
+    "ceiling": 0.30,      # no pillar gets more than 30% of posts
+    "step": 0.5,          # each week, move only halfway toward the new target
+    "max_boost": 2.0,     # a pillar can at most double (or halve) its normal weight
+    "strength": 1.0,      # how strongly results push the weights
+    "min_posts": 3,       # a pillar needs this many measured posts before it is judged
+    "prior_posts": 4,     # few posts = mostly luck, so results are trusted gradually
+    "half_life_days": 14, # a post from 2 weeks ago counts half as much as one from today
+}
+
 FORMATS = [
     "a single sharp one-liner",
     "a question that makes people stop scrolling",

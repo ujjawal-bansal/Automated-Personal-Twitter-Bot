@@ -10,13 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "dry-run = show the tweet without posting, post-now = post immediately"
+        description: "dry-run = show the tweet without posting, post-now = post immediately, learn-now = update the weekly report and pillar weights"
         type: choice
-        options: [dry-run, post-now]
+        options: [dry-run, post-now, learn-now]
         default: dry-run
 
 permissions:
-  contents: write  # lets the bot save data/history.json
+  contents: write  # lets the bot save data/ (history, learned weights, weekly report)
 
 concurrency:
   group: post-to-x  # never two runs at once, so no double posts
@@ -49,7 +49,8 @@ jobs:
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
           SCHEDULE_SEED: ${{ secrets.SCHEDULE_SEED }}
           DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' }}
-          FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+          FORCE: ${{ github.event.inputs.mode == 'dry-run' || github.event.inputs.mode == 'post-now' }}
+          LEARN_ONLY: ${{ github.event.inputs.mode == 'learn-now' }}
         run: python bot.py
 
       - name: Save image preview (dry runs)
@@ -60,12 +61,12 @@ jobs:
           path: preview/
           if-no-files-found: ignore
 
-      - name: Save post history
+      - name: Save post history, weights and report
         if: github.event.inputs.mode != 'dry-run'
         run: |
           git config user.name "x-bot"
           git config user.email "x-bot@users.noreply.github.com"
-          git add data/history.json
+          git add data/
           if git diff --cached --quiet; then echo "Nothing new to save."; exit 0; fi
           git commit -m "Log post"
           git pull --rebase origin "${GITHUB_REF_NAME}"
