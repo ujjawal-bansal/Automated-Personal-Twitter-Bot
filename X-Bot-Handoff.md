@@ -50,7 +50,7 @@ Each post comes from one of six **content pillars**. The bot rotates through the
 ## 3. Architecture
 
 - **Hosting:** GitHub Actions in a **private** repo, which is free (about 750 of 2,000 free minutes per month).
-- **Schedule:** cron checks every 30 minutes around each window (`*/30 3-6 * * *`, `*/30 7-10 * * *` and `*/30 13-16 * * *` UTC). `bot.py` computes a seeded random target minute per window per day and posts on the first run after it. Duplicate posting is prevented by checking `data/history.json`. Verified in simulation: exactly 60 posts per 30 days (before the third window was added on 8 Oct 2026; now 90).
+- **Schedule:** cron `17,47 3-18 * * *` UTC (odd minutes, because GitHub dropped most :00/:30 runs: in the first 4 days only ~3 scheduled runs a day fired and the morning slot never posted). `bot.py` computes a seeded random target minute per window per day; a missed slot stays due until the next window starts (evening until midnight) with a 120-minute minimum gap between posts. Duplicate posting is prevented by checking `data/history.json`. Simulated: 90/90 posts when every run fires, 81/90 when only 25% of runs fire.
 - **AI:** Gemini via the `google-genai` SDK. Models are tried in order: `gemini-2.5-flash`, then `gemini-2.5-flash-lite`. Geopolitics uses the `google_search` tool, and falls back to a timeless angle if search fails.
 - **Quality checks:** X-weighted length ≤ 280; similarity check against the last 40 posts (difflib > 0.6 means regenerate); cleanup strips links, citation markers and markdown; up to 5 retries.
 - **Posting:** `tweepy.Client.create_tweet` with OAuth 1.0a user context (API key and secret plus access token and secret, with Read and Write permission).

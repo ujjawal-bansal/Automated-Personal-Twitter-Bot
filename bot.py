@@ -72,10 +72,15 @@ def target_time(day, name, start, end):
 
 
 def due_slot(now, history):
+    """GitHub often runs scheduled jobs late or skips them, so a window's post stays due
+    until the next window starts (the last one until midnight): a missed slot is caught
+    up on the next run that does happen, instead of being lost."""
     day = now.date()
-    for name, (s, e) in config.WINDOWS.items():
+    windows = sorted(config.WINDOWS.items(), key=lambda w: w[1][0])
+    for i, (name, (s, e)) in enumerate(windows):
         start, end = at(day, s), at(day, e)
-        if not (start <= now <= end + timedelta(minutes=config.GRACE_MINUTES)):
+        until = at(day, windows[i + 1][1][0]) if i + 1 < len(windows) else at(day + timedelta(days=1), "00:00")
+        if not (start <= now < until):
             continue
         slot = f"{day.isoformat()}-{name}"
         if any(p.get("slot") == slot for p in history["posts"]):
@@ -85,8 +90,12 @@ def due_slot(now, history):
         if now < target:
             print(f"{slot}: not yet, today's post time is {target:%H:%M}.")
             return None
+        last = max((datetime.fromisoformat(p["time"]) for p in history["posts"]), default=None)
+        if last and now - last < timedelta(minutes=config.MIN_GAP_MINUTES):
+            print(f"{slot}: last post was at {last:%H:%M}, waiting for a gap of {config.MIN_GAP_MINUTES} minutes.")
+            return None
         return slot
-    print(f"{now:%H:%M} is outside every posting window.")
+    print(f"{now:%H:%M} is before the first posting window.")
     return None
 
 

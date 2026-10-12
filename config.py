@@ -13,7 +13,10 @@ WINDOWS = {
     "afternoon": ("13:00", "15:00"),
     "evening": ("19:00", "21:30"),
 }
-GRACE_MINUTES = 100  # a delayed GitHub run may still post this long after a window ends
+# GitHub sometimes runs late or skips a run. A missed post is caught up on the next run,
+# any time before the next window starts (the evening one until midnight),
+# as long as the previous post was at least this long ago.
+MIN_GAP_MINUTES = 120
 
 # Small signature in the corner of shayari cards.
 CARD_SIGNATURE = "Vashu Vats"

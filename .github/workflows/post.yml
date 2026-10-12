@@ -2,11 +2,10 @@ name: Post to X
 
 on:
   schedule:
-    # Cron is in UTC (IST minus 5:30). The bot runs every 30 minutes around each
-    # window and only posts once it passes that day's random time (see config.WINDOWS).
-    - cron: "*/30 3-6 * * *"    # morning window, 9:00-11:00 AM IST (+ grace)
-    - cron: "*/30 7-10 * * *"   # afternoon window, 1:00-3:00 PM IST (+ grace)
-    - cron: "*/30 13-16 * * *"  # evening window, 7:00-9:30 PM IST (+ grace)
+    # Cron is in UTC (IST minus 5:30). The bot checks twice an hour from 8:47 AM to
+    # 12:17 AM IST and only posts when a window's random time has passed (see config.WINDOWS).
+    # Odd minutes on purpose: GitHub drops many runs scheduled at :00 and :30.
+    - cron: "17,47 3-18 * * *"
   workflow_dispatch:
     inputs:
       mode:

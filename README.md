@@ -71,7 +71,7 @@ After that, it runs by itself. If a run ever fails, GitHub emails you.
   ```
   The bot posts each one once before repeating, always with the poet's name and a card. Urdu-script couplets work too.
 - **Images:** in `config.py`, each pillar's `image_chance` (0 to 1) controls how often it tries to attach an image. Set it to 0 to turn images off for that pillar. `card_chance` does the same for shayari cards, and `CARD_SIGNATURE` is the name in the card's footer.
-- **Change posting times:** edit `WINDOWS` in `config.py` *and* the three `cron` lines in `post.yml`. Cron uses UTC, which is IST minus 5:30.
+- **Change posting times:** edit `WINDOWS` in `config.py`. If a window moves earlier than 8:47 AM IST, also widen the `cron` line in `post.yml` (it uses UTC, which is IST minus 5:30).
 - **Pause the bot:** Actions tab → Post to X → **⋯ → Disable workflow**.
 - **See what was posted:** `data/history.json`.
 
