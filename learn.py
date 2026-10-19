@@ -29,7 +29,7 @@ ROOT = Path(__file__).parent
 WEIGHTS_FILE = ROOT / "data" / "weights.json"
 REPORT_FILE = ROOT / "data" / "report.md"
 SETTLE = timedelta(hours=48)   # measure a post once it is this old; most reach comes early
-LOOKBACK = timedelta(days=29)  # older posts no longer steer the weights
+LOOKBACK = timedelta(days=config.LEARNING["lookback_days"])  # older posts no longer steer the weights
 
 
 # ---------------------------------------------------------------- reading metrics
@@ -170,7 +170,7 @@ def new_shares(scores):
 
 def report(history, scores, before, after, now):
     lines = [f"# Weekly report, {now:%d %b %Y}", "",
-             "How each kind of post did over the last 4 weeks, and how often the bot will "
+             f"How each kind of post did over the last {LOOKBACK.days} days, and how often the bot will "
              "pick it from now on.", "",
              "| Pillar | Posts measured | Avg views | Avg likes | Share before | Share now |",
              "|---|---|---|---|---|---|"]
@@ -181,10 +181,10 @@ def report(history, scores, before, after, now):
         likes = sum(m["like_count"] for m in ms) / len(ms) if ms else 0
         lines.append(f"| {n} | {len(ms)} | {views:.0f} | {likes:.1f} | "
                      f"{before[n]:.0%} | {after[n]:.0%} |")
-    week = [p for p in history["posts"] if "metrics" in p and _time(p) >= now - timedelta(days=9)]
+    week = [p for p in history["posts"] if "metrics" in p and _time(p) >= now - timedelta(days=16)]
     week.sort(key=lambda p: points(p["metrics"]), reverse=True)
     if week:
-        lines += ["", "## Best posts this week", ""]
+        lines += ["", "## Best recent posts", ""]
         for p in week[:3]:
             m = p["metrics"]
             first = p["text"].split("\n")[0][:90]

@@ -71,6 +71,17 @@ def target_time(day, name, start, end):
     return start + timedelta(minutes=rng.randint(0, span))
 
 
+def next_post_day(history):
+    """The date of the next post: 3 or 4 days (config.POST_EVERY_DAYS) after the last one,
+    picked at random but fixed for that last post. None if nothing has been posted yet."""
+    if not history["posts"]:
+        return None
+    last = datetime.fromisoformat(history["posts"][-1]["time"]).astimezone(TZ).date()
+    rng = random.Random(f"{last.isoformat()}|gap|{os.environ.get('SCHEDULE_SEED', '')}")
+    lo, hi = config.POST_EVERY_DAYS
+    return last + timedelta(days=rng.randint(lo, hi))
+
+
 def due_slot(now, history):
     """GitHub often runs scheduled jobs late or skips them, so a window's post stays due
     until the next window starts (the last one until midnight): a missed slot is caught
@@ -85,6 +96,10 @@ def due_slot(now, history):
         slot = f"{day.isoformat()}-{name}"
         if any(p.get("slot") == slot for p in history["posts"]):
             print(f"Already posted for {slot}.")
+            return None
+        wait_until = next_post_day(history)
+        if wait_until and day < wait_until:
+            print(f"Posting every {'-'.join(map(str, config.POST_EVERY_DAYS))} days: next post on {wait_until:%d %b}.")
             return None
         target = target_time(day, name, start, end)
         if now < target:
@@ -134,7 +149,8 @@ def pick_shayari(history):
 
 
 def build_prompt(topic, fmt, recent, search, meant_current, want_image=False):
-    parts = [f"Topic: {topic}", f"Format: {fmt}."]
+    parts = [f"Topic: {topic}", f"Format: {fmt}.",
+             "Stick to this one topic. No comparisons with other subjects, eras or traditions."]
     if search:
         parts.append("First search for the most significant news on this topic from the past 7 days. "
                      "Build the tweet around one specific, real, recent development, "
@@ -147,7 +163,7 @@ def build_prompt(topic, fmt, recent, search, meant_current, want_image=False):
                      "artwork, artifact, manuscript, sculpture or site photo that would illustrate it, "
                      "inside <image_query></image_query>. Prefer specific, famous subjects.")
     if recent:
-        parts.append("Recent tweets on the account (do not repeat their ideas or openings):\n"
+        parts.append("Recent tweets on the account (do not repeat their ideas, openings or sentence shapes):\n"
                      + "\n".join(f"- {t}" for t in recent))
     return "\n\n".join(parts)
 
@@ -188,9 +204,19 @@ def clean(raw):
     text = re.sub(r"https?://\S+|www\.\S+", "", text)       # links cost $0.20 per post on X
     text = re.sub(r"\s*\[\d+(?:[,\s]*\d+)*\]", "", text)       # search citation markers like [1]
     text = text.replace("**", "").replace("__", "")
+    text = re.sub(r"\s*[—–]\s*", ", ", text).replace(";", ".")  # dashes and semicolons read as AI
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip().strip('"“”').strip()
+
+
+def sounds_like_ai(text):
+    """Returns the first banned phrase found (see config.BANNED_PATTERNS), or None."""
+    for pattern in config.BANNED_PATTERNS:
+        m = re.search(pattern, text, re.I)
+        if m:
+            return m.group(0)
+    return None
 
 
 def too_similar(text, history):
@@ -207,7 +233,7 @@ def image_query_from(raw):
 
 def make_post(history):
     skip = set()
-    for _ in range(5):
+    for _ in range(6):
         pillar = choose_pillar(history, exclude=skip)
         cfg = config.PILLARS[pillar]
         if pillar == "shayari":
@@ -226,12 +252,14 @@ def make_post(history):
             print("Empty tweet after cleaning, retrying.")
         elif x_length(text) > MAX_LEN:
             print(f"Too long ({x_length(text)} chars), retrying.")
+        elif sounds_like_ai(text):
+            print(f"Sounds AI-written ({sounds_like_ai(text)!r}), retrying.")
         elif too_similar(text, history):
             print("Too similar to a recent post, retrying.")
         else:
             return {"pillar": pillar, "topic": topic, "text": text,
                     "image_query": image_query_from(raw) if want_image else None}
-    raise RuntimeError("Could not produce a usable post after 5 tries.")
+    raise RuntimeError("Could not produce a usable post after 6 tries.")
 
 
 def attach_image(post, history):

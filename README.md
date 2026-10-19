@@ -1,6 +1,6 @@
 # Vashu's X Bot
 
-Posts three times a day at random times (once between 9:00–11:00 AM IST, once between 1:00–3:00 PM IST, once between 7:00–9:30 PM IST).
+Posts one tweet every 3–4 days, at a random time between 7:00 and 10:00 PM IST. Fewer, better posts: each tweet sticks to one topic and is checked for phrases that make it read as AI-written.
 Each post is either an AI-written tweet from one of five themes (mind, ancient mysteries, prophecy and surveillance, geopolitics, history) or a classic shayari from `content/shayari.json`.
 
 **Images (no AI images, nothing to label):**
@@ -14,9 +14,9 @@ Runs on GitHub Actions. No server, no laptop needs to stay on.
 
 | Piece | Cost |
 |---|---|
-| GitHub Actions | Free. About 750 of the 2,000 free minutes per month, even for a private repo |
+| GitHub Actions | Free. About 400 of the 2,000 free minutes per month, even for a private repo |
 | Gemini API | Free tier, including Google Search for the geopolitics posts |
-| X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$1.50–2.50/month** at 3 posts a day. Posts with links cost $0.20 each, so the bot strips links |
+| X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$0.15–0.25/month** at one post every 3–4 days. Posts with links cost $0.20 each, so the bot strips links |
 | Weekly learning | About $0.10/month: reading your own posts' stats is $0.001 per post |
 | Images | Free. Cards are drawn by the code; Commons images are public domain |
 
@@ -71,7 +71,9 @@ After that, it runs by itself. If a run ever fails, GitHub emails you.
   ```
   The bot posts each one once before repeating, always with the poet's name and a card. Urdu-script couplets work too.
 - **Images:** in `config.py`, each pillar's `image_chance` (0 to 1) controls how often it tries to attach an image. Set it to 0 to turn images off for that pillar. `card_chance` does the same for shayari cards, and `CARD_SIGNATURE` is the name in the card's footer.
-- **Change posting times:** edit `WINDOWS` in `config.py`. If a window moves earlier than 8:47 AM IST, also widen the `cron` line in `post.yml` (it uses UTC, which is IST minus 5:30).
+- **Change how often it posts:** edit `POST_EVERY_DAYS` in `config.py`, for example `(2, 3)` for every 2–3 days or `(1, 1)` for daily.
+- **Change the posting time:** edit `WINDOWS` in `config.py`. If it moves outside 6:47 PM to midnight IST, also change the `cron` line in `post.yml` (it uses UTC, which is IST minus 5:30).
+- **Phrases that sound like AI:** `BANNED_PATTERNS` in `config.py`. A draft containing one is thrown away and rewritten. Add any phrase that annoys you.
 - **Pause the bot:** Actions tab → Post to X → **⋯ → Disable workflow**.
 - **See what was posted:** `data/history.json`.
 

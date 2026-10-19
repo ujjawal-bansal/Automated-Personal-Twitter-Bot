@@ -5,13 +5,12 @@ Everything else (bot.py) can stay untouched.
 
 TIMEZONE = "Asia/Kolkata"
 
-# Posting windows in local time. Every day the bot picks a random minute inside
-# each window, so posts never land at the same time twice.
-# If you change these, also update the cron lines in .github/workflows/post.yml (UTC).
+# One post every few days, in the evening (IST). After each post the bot waits a
+# random 3 or 4 days, then posts at a random minute inside the window below.
+POST_EVERY_DAYS = (3, 4)
+# Posting window in local time. The cron line in .github/workflows/post.yml (UTC) must cover it.
 WINDOWS = {
-    "morning": ("09:00", "11:00"),
-    "afternoon": ("13:00", "15:00"),
-    "evening": ("19:00", "21:30"),
+    "evening": ("19:00", "22:00"),
 }
 # GitHub sometimes runs late or skips a run. A missed post is caught up on the next run,
 # any time before the next window starts (the evening one until midnight),
@@ -24,22 +23,32 @@ CARD_SIGNATURE = "Vashu Vats"
 # Tried in order. Free-tier friendly Flash models first.
 GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
-PERSONA = """You write tweets for Vashu Vats, an Indian thinker on X.
-His bio: Hacker. Tech | Philosophy | Finance. Bookworm, armchair philosopher, finance bro,
-conspiracy theorist, antiquarian, geostrategist. Har Har Mahadev.
+PERSONA = """You write tweets for Vashu Vats, a 20-something Indian guy on X who reads a lot
+and posts what he is actually thinking about. Hacker, into philosophy, history, finance,
+ancient mysteries and geopolitics. Har Har Mahadev.
 
-Voice:
-- Sharp, contemplative, a little contrarian. A well-read person thinking out loud, not a brand or a motivational page.
-- Connects ideas across fields: Stoicism with game theory, Yuga cycles with the fall of Rome, prophecy with mass surveillance.
-- Indian vantage point: draws on Advaita Vedanta, the epics and Indian history alongside Western thought.
-- Plain modern English. Short sentences. Concrete images over abstractions.
+How he writes:
+- Like a person typing on his phone, not a writer polishing a line. Casual, direct, a bit dry.
+- One thought per tweet. Stay on the single topic you are given. Do not pull in other
+  subjects, other eras, other traditions or a "modern parallel" to make it sound deep.
+- Says the specific thing: a name, a date, a detail, an odd fact. No grand summaries.
+- Fine to be unsure, half-joking, or to just find something interesting. No lessons, no morals.
+- Plain words. Short sentences. Lowercase or a fragment is fine now and then.
+
+Never write like an AI. Do not use:
+- "isn't just X, it's Y", "not just X but Y", "not merely", "more than just"
+- em dashes, semicolons, or colons used to set up a reveal
+- lists of three ("power, control and fear"), rhetorical contrasts, or a punchline last line
+- words like delve, tapestry, testament, profound, timeless, echoes, whisper, realm, unveil,
+  quiet revolution, the human condition, in an age of, modern-day, ancient wisdom
+- opening with "In a world", "Ever wondered", "Here's the thing", "Imagine",
+  "Unpopular opinion", "Let that sink in", "What if" (save "what if" for fringe topics, mid-tweet)
 
 Hard rules:
-- One tweet only, at most 260 characters.
+- One tweet only, at most 260 characters. Shorter is better.
 - No hashtags, no emojis, no links, no @mentions.
-- Never open with "In a world", "Ever wondered", "Here's the thing", "Imagine", "Unpopular opinion" or "Let that sink in".
 - Never invent quotes. Only quote someone if you are certain of the exact wording; otherwise paraphrase without quotation marks.
-- Ancient mysteries, prophecy and conspiracy themes: present them as patterns, questions or "what if" observations, never as proven fact.
+- Ancient mysteries, prophecy and conspiracy themes: frame them as questions or "what if", never as proven fact.
 - Never blame or demean any ethnic, religious or national group of people. Critique systems, institutions and power, not peoples.
 - Geopolitics and finance: only state facts and numbers that appear in your search results. No price predictions, no investment advice.
 
@@ -62,13 +71,13 @@ PILLARS = {
             "Advaita Vedanta: Brahman, Maya and the witness",
             "attachment and the freedom of letting go",
             "existentialism and making meaning",
-            "Stoicism applied to modern anxiety",
+            "Stoicism and anxiety",
             "emotional intelligence as an unfair advantage",
             "neuroplasticity: you become what you repeat",
             "metacognition: thinking about your own thinking",
             "pattern recognition as a survival skill",
             "game theory in everyday life and relationships",
-            "the dangerous art of optimistic delusion",
+            "optimistic delusion",
             "herd behaviour and the courage to think alone",
             "celebrity and sports worship as a symptom of lost purpose",
             "the ultimate reality is the same for everyone",
@@ -84,13 +93,13 @@ PILLARS = {
             "Sumerian and Akkadian texts and the Anunnaki myths",
             "Plato's Atlantis story",
             "Agartha and hidden-world legends",
-            "flood myths: Manu, Noah, Utnapishtim",
+            "Manu and the great flood",
             "the Yuga cycles and where we are in Kali Yuga",
-            "Hopi world cycles and the Mayan calendar",
+            "Hopi prophecy of the worlds",
             "the Nephilim in Genesis and the Book of Enoch",
-            "the repeating pattern: creation, knowledge, corruption, catastrophe, rebirth",
-            "first-human myths: Adam and Eve, Manu, and others compared",
-            "serpent beings across cultures: Nagas, reptilian legends, the Garden serpent",
+            "the Mayan Long Count calendar",
+            "Adam and Eve and the fall",
+            "the Nagas in Indian legend",
         ],
     },
     "prophecy": {
@@ -98,15 +107,15 @@ PILLARS = {
         "weight": 2,
         "grounded": False,
         "topics": [
-            "Gog and Magog across Biblical and Islamic tradition",
-            "the Dajjal and the Antichrist as archetypes of deception",
-            "666 and the mark of the beast versus digital ID",
+            "Gog and Magog",
+            "the Dajjal",
+            "the mark of the beast in Revelation",
             "algorithmic persuasion and who really chooses what you think",
             "mass data collection and the end of privacy",
             "AI surveillance and the shape of future states",
             "centralized digital infrastructure and single points of control",
-            "the WEF and the 'NWO' narrative: why it resonates",
-            "signs of Kali Yuga in modern technology",
+            "the WEF",
+            "the Kalki prophecy",
         ],
     },
     "geopolitics": {
@@ -134,8 +143,8 @@ PILLARS = {
         "topics": [
             "the Roman Republic's slide into Empire",
             "the fall of Western Rome and the barbarian invasions",
-            "Goths, Huns and Vandals: the outsiders who toppled an empire",
-            "grand strategy lessons from the Total War era of history",
+            "the Vandals sacking Rome in 455",
+            "Hannibal crossing the Alps",
             "Chanakya's Arthashastra and statecraft",
             "Ashoka: from conqueror to renunciant",
             "the Gupta golden age",
@@ -143,7 +152,7 @@ PILLARS = {
             "the Vijayanagara empire",
             "Maratha guerrilla warfare",
             "Alexander and Porus at the Hydaspes",
-            "the Mahabharata and Ramayana as political texts",
+            "statecraft in the Mahabharata",
             "the Epic of Gilgamesh",
             "the Iliad and the psychology of war",
             "the Shahnameh and Persian kingship",
@@ -166,14 +175,25 @@ LEARNING = {
     "strength": 1.0,      # how strongly results push the weights
     "min_posts": 3,       # a pillar needs this many measured posts before it is judged
     "prior_posts": 4,     # few posts = mostly luck, so results are trusted gradually
-    "half_life_days": 14, # a post from 2 weeks ago counts half as much as one from today
+    "half_life_days": 45, # a post from 6 weeks ago counts half as much as one from today
+    "lookback_days": 120, # posts older than this are ignored (few posts now, so look further back)
 }
 
 FORMATS = [
-    "a single sharp one-liner",
-    "a question that makes people stop scrolling",
-    "a short observation connecting two seemingly unrelated ideas",
-    "a contrarian take with one line of reasoning",
-    "a lesson from the past applied to today",
-    "a two-line then-versus-now contrast",
+    "one plain observation, a sentence or two",
+    "an honest question you'd actually want answered",
+    "one specific fact you find wild, and a short reaction to it",
+    "a mildly contrarian opinion with one reason",
+    "a short thought, the way you'd text it to a friend",
+]
+
+# Phrases that make a tweet read as AI-written. A draft containing any of these is
+# thrown away and rewritten (case-insensitive regular expressions).
+BANNED_PATTERNS = [
+    r"n['’]t just\b", r"\b(isn|wasn|aren|weren)['’]t\b[^.?!]{0,80}[.?!,]\s*(it|they)['’](s|re)\b", r"\bnot just\b", r"\bnot merely\b", r"\bmore than just\b",
+    r"\bit['’]s not about\b",
+    r"\bdelve", r"\btapestry\b", r"\btestament\b", r"\bprofound", r"\btimeless\b",
+    r"\bechoes?\b", r"\bwhispers?\b", r"\brealm\b", r"\bunveil", r"\bquiet revolution\b",
+    r"\bhuman condition\b", r"\bin an age of\b", r"\bmodern[- ]day\b", r"\bancient wisdom\b",
+    r"^\s*(in a world|ever wondered|here['’]s the thing|imagine|unpopular opinion|what if)\b",
 ]

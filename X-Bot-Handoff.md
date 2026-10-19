@@ -25,10 +25,7 @@ The bot's code files (`bot.py`, `images.py`, `config.py`, `README.md`, `content/
 
 ## 2. What the bot does
 
-Posts to X **three times a day, fully automatically** (no approval step), at a different random time each day:
-- once between **9:00–11:00 AM IST**
-- once between **1:00–3:00 PM IST**
-- once between **7:00–9:30 PM IST**
+Posts to X **once every 3–4 days, fully automatically** (no approval step), at a random time between **7:00 and 10:00 PM IST**. (Changed 19 Oct 2026 at Vashu's request: it was 3 a day, which cluttered the profile. He wants fewer, better posts, written more like a person, one topic per tweet.)
 
 Each post comes from one of six **content pillars**. The bot rotates through them and never posts the same pillar back to back.
 
@@ -43,14 +40,14 @@ Each post comes from one of six **content pillars**. The bot rotates through the
 
 **Language:** English for all AI-written posts. Shayari is in **Hindi (Devanagari) script**, both on the card and in the tweet text.
 
-**Persona rules** (in `config.py`): sharp, contemplative, slightly contrarian, Indian vantage point; at most 260 characters; no hashtags, emojis, links or @mentions; no invented quotes; fringe topics framed as questions, patterns or "what if", never as fact; never blame any ethnic, religious or national group; geopolitics uses only facts from search results, with no investment advice.
+**Persona rules** (in `config.py`): casual and direct, like a person typing on his phone; one topic per tweet, with no mixing of interests (Vashu said mashups like Maya + NWO gave the AI away); specific details over grand summaries; no AI tells ("not just X but Y", dashes, triads, words like delve/tapestry/echoes), enforced by `BANNED_PATTERNS`; at most 260 characters; no hashtags, emojis, links or @mentions; no invented quotes; fringe topics framed as questions, patterns or "what if", never as fact; never blame any ethnic, religious or national group; geopolitics uses only facts from search results, with no investment advice.
 
 ---
 
 ## 3. Architecture
 
-- **Hosting:** GitHub Actions in a **private** repo, which is free (about 750 of 2,000 free minutes per month).
-- **Schedule:** cron `17,47 3-18 * * *` UTC (odd minutes, because GitHub dropped most :00/:30 runs: in the first 4 days only ~3 scheduled runs a day fired and the morning slot never posted). `bot.py` computes a seeded random target minute per window per day; a missed slot stays due until the next window starts (evening until midnight) with a 120-minute minimum gap between posts. Duplicate posting is prevented by checking `data/history.json`. Simulated: 90/90 posts when every run fires, 81/90 when only 25% of runs fire.
+- **Hosting:** GitHub Actions in a **private** repo, which is free (about 400 of 2,000 free minutes per month).
+- **Schedule:** cron `17,47 13-18 * * *` UTC (odd minutes, because GitHub drops many :00/:30 runs; morning runs almost never fired). After each post `bot.py` picks a seeded random gap of 3 or 4 days (`POST_EVERY_DAYS`), then posts at a seeded random minute in the 19:00–22:00 IST window; a missed run is caught up until midnight. Duplicate posting is prevented by checking `data/history.json`.
 - **AI:** Gemini via the `google-genai` SDK. Models are tried in order: `gemini-2.5-flash`, then `gemini-2.5-flash-lite`. Geopolitics uses the `google_search` tool, and falls back to a timeless angle if search fails.
 - **Quality checks:** X-weighted length ≤ 280; similarity check against the last 40 posts (difflib > 0.6 means regenerate); cleanup strips links, citation markers and markdown; up to 5 retries.
 - **Posting:** `tweepy.Client.create_tweet` with OAuth 1.0a user context (API key and secret plus access token and secret, with Read and Write permission).
@@ -65,7 +62,7 @@ Each post comes from one of six **content pillars**. The bot rotates through the
 
 ## 4. Costs (checked Oct 2026)
 
-- **X API:** no free tier since 6 Feb 2026; pay-per-use with prepaid credits. About $0.015 per post and $0.20 if the post contains a URL (the bot strips links). Image uploads may add a small charge, and alt text costs $0.005. Expected total: **about $1.50–2.50/month** at 3 posts a day. The account has $20 of free X credit until 6 Jan 2027.
+- **X API:** no free tier since 6 Feb 2026; pay-per-use with prepaid credits. About $0.015 per post and $0.20 if the post contains a URL (the bot strips links). Image uploads may add a small charge, and alt text costs $0.005. Expected total: **about $0.15–0.25/month** at one post every 3–4 days. The account has $20 of free X credit until 6 Jan 2027.
 - **Gemini:** free tier for text and search grounding. Gemini **image generation has no free API tier**, which is one reason we don't use AI images.
 - **GitHub Actions:** free.
 
