@@ -71,35 +71,53 @@ def target_time(day, name, start, end):
     return start + timedelta(minutes=rng.randint(0, span))
 
 
-def next_post_day(history):
+def is_trending(post):
+    return post.get("pillar") == "trending"
+
+
+def next_post_day(posts, every_days=None):
     """The date of the next post: 3 or 4 days (config.POST_EVERY_DAYS) after the last one,
     picked at random but fixed for that last post. None if nothing has been posted yet."""
-    if not history["posts"]:
+    if not posts:
         return None
-    last = datetime.fromisoformat(history["posts"][-1]["time"]).astimezone(TZ).date()
+    last = datetime.fromisoformat(posts[-1]["time"]).astimezone(TZ).date()
     rng = random.Random(f"{last.isoformat()}|gap|{os.environ.get('SCHEDULE_SEED', '')}")
-    lo, hi = config.POST_EVERY_DAYS
+    lo, hi = every_days or config.POST_EVERY_DAYS
     return last + timedelta(days=rng.randint(lo, hi))
 
 
-def due_slot(now, history):
+def due_slot(now, history, trending=False):
     """GitHub often runs scheduled jobs late or skips them, so a window's post stays due
     until the next window starts (the last one until midnight): a missed slot is caught
-    up on the next run that does happen, instead of being lost."""
+    up on the next run that does happen, instead of being lost.
+    Normal posts and trending posts each keep their own window and their own 3-4 day gap."""
     day = now.date()
-    windows = sorted(config.WINDOWS.items(), key=lambda w: w[1][0])
+    if trending:
+        posts = [p for p in history["posts"] if is_trending(p)]
+        windows = {"trending": config.TRENDING["window"]}
+        every_days = config.TRENDING["every_days"]
+    else:
+        posts = [p for p in history["posts"] if not is_trending(p)]
+        windows = config.WINDOWS
+        every_days = config.POST_EVERY_DAYS
+    windows = sorted(windows.items(), key=lambda w: w[1][0])
     for i, (name, (s, e)) in enumerate(windows):
         start, end = at(day, s), at(day, e)
-        until = at(day, windows[i + 1][1][0]) if i + 1 < len(windows) else at(day + timedelta(days=1), "00:00")
+        if trending:
+            until = at(day, config.TRENDING.get("catch_up_until", e))
+        elif i + 1 < len(windows):
+            until = at(day, windows[i + 1][1][0])
+        else:
+            until = at(day + timedelta(days=1), "00:00")
         if not (start <= now < until):
             continue
         slot = f"{day.isoformat()}-{name}"
         if any(p.get("slot") == slot for p in history["posts"]):
             print(f"Already posted for {slot}.")
             return None
-        wait_until = next_post_day(history)
+        wait_until = next_post_day(posts, every_days)
         if wait_until and day < wait_until:
-            print(f"Posting every {'-'.join(map(str, config.POST_EVERY_DAYS))} days: next post on {wait_until:%d %b}.")
+            print(f"{name}: posting every {'-'.join(map(str, sorted(set(every_days))))} days, next post on {wait_until:%d %b}.")
             return None
         target = target_time(day, name, start, end)
         if now < target:
@@ -110,7 +128,7 @@ def due_slot(now, history):
             print(f"{slot}: last post was at {last:%H:%M}, waiting for a gap of {config.MIN_GAP_MINUTES} minutes.")
             return None
         return slot
-    print(f"{now:%H:%M} is before the first posting window.")
+    print(f"{now:%H:%M} is outside the {'trending' if trending else 'normal'} posting window.")
     return None
 
 
@@ -262,6 +280,165 @@ def make_post(history):
     raise RuntimeError("Could not produce a usable post after 6 tries.")
 
 
+# ---------------------------------------------------------------- trending posts
+
+TRENDING_PERSONA = config.PERSONA.replace(
+    "- No hashtags, no emojis, no links, no @mentions.",
+    "- No emojis, no links, no @mentions. Do not put hashtags inside the tweet; give them separately.")
+HASHTAG_RE = re.compile(r"^#[^\W_][\w]{1,29}$")
+
+
+def x_bearer_token():
+    """App-only token for reading public X data, made from the same API key and secret
+    the bot already has (an X_BEARER_TOKEN secret is used instead if you add one)."""
+    import requests
+    if os.environ.get("X_BEARER_TOKEN"):
+        return os.environ["X_BEARER_TOKEN"]
+    r = requests.post("https://api.x.com/oauth2/token",
+                      auth=(os.environ["X_API_KEY"], os.environ["X_API_SECRET"]),
+                      data={"grant_type": "client_credentials"}, timeout=20)
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+
+def fetch_x_trends():
+    """What's trending on X right now, from the places in config.TRENDING["x_trends"].
+    Returns [(name, post_count or None)], or [] if X can't be read (the bot then uses search only).
+    Each list read costs $0.010 on X."""
+    import requests
+    places = config.TRENDING.get("x_trends") or []
+    if not places or not os.environ.get("X_API_KEY"):
+        return []
+    try:
+        headers = {"Authorization": f"Bearer {x_bearer_token()}"}
+    except Exception as e:
+        print(f"Could not get an X app token, using search only: {e}")
+        return []
+    trends, seen = [], set()
+    for woeid in places:
+        try:
+            r = requests.get(f"https://api.x.com/2/trends/by/woeid/{woeid}", headers=headers, timeout=20,
+                             params={"max_trends": min(50, config.TRENDING.get("x_trends_count", 30)),
+                                     "trend.fields": "trend_name,tweet_count"})
+            r.raise_for_status()
+            for t in r.json().get("data") or []:
+                name = (t.get("trend_name") or "").strip()
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    trends.append((name, t.get("tweet_count")))
+        except Exception as e:
+            print(f"Could not read X trends for place {woeid}: {e}")
+    print(f"Read {len(trends)} trends from X.")
+    return trends
+
+
+def trending_prompt(recent_topics, recent, x_trends=()):
+    T = config.TRENDING
+    room = MAX_LEN - 10 - 16 * T["max_hashtags"]
+    if x_trends:
+        listing = "\n".join(f"- {n}" + (f" ({c:,} posts)" if isinstance(c, int) else "") for n, c in x_trends)
+        find = ("These are trending on X right now (India and worldwide):\n" + listing + "\n\n"
+                "Pick from this list a trend that is a real news story within these areas, and search Google "
+                "for the facts about it:\n" + "\n".join(f"- {c}" for c in T["categories"]))
+    else:
+        find = ("Search Google for the stories trending on X (Twitter) and in the news in the last 24 hours, "
+                "in India and worldwide, within these areas:\n" + "\n".join(f"- {c}" for c in T["categories"]))
+    parts = [
+        find,
+        "Pick the ONE story that is biggest right now and that a sharp, curious guy could have a real "
+        "take on. Never pick any of these:\n" + "\n".join(f"- {a}" for a in T["avoid"]),
+        f"Write one tweet about it in his voice, at most {room} characters, using only facts that appear "
+        "in the search results. Format: a plain observation, an honest question, or a short opinion with "
+        "one reason. Protests and politics: describe what is happening and what you wonder about it, do "
+        "not take sides against any group of people.",
+        f"Then give up to {T['max_hashtags']} hashtags that people on X are actually using for this story "
+        "right now, most used first" + (" (use the exact hashtags from the X list above when they fit)" if x_trends else "")
+        + ". Only real, relevant tags, no generic ones like #News or #Breaking.",
+        "Answer in exactly this shape:\n<topic>short name of the story</topic>\n<tweet>the tweet</tweet>\n"
+        "<hashtags>#One #Two</hashtags>",
+    ]
+    if recent_topics:
+        parts.append("Already covered recently, pick something else:\n" + "\n".join(f"- {t}" for t in recent_topics))
+    if recent:
+        parts.append("Recent tweets on the account (do not repeat their openings or sentence shapes):\n"
+                     + "\n".join(f"- {t}" for t in recent))
+    return "\n\n".join(parts)
+
+
+def generate_trending(prompt):
+    """Always searches. If search fails there is no trending post (it would only be a guess)."""
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    models = [m.strip() for m in os.environ.get("GEMINI_MODELS", "").split(",") if m.strip()]
+    for model in models or config.GEMINI_MODELS:
+        try:
+            resp = client.models.generate_content(
+                model=model, contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=TRENDING_PERSONA, temperature=0.9,
+                    tools=[types.Tool(google_search=types.GoogleSearch())]),
+            )
+            if resp.text and resp.text.strip():
+                print(f"Trending post generated with {model}.")
+                return resp.text
+            print(f"{model} returned nothing (possibly a safety block).")
+        except Exception as e:
+            print(f"{model} failed: {e}")
+    raise RuntimeError("Every Gemini attempt with search failed; no trending post this time.")
+
+
+def tag(raw, name):
+    m = re.search(rf"<{name}>(.*?)</{name}>", raw, re.S)
+    return m.group(1).strip() if m else ""
+
+
+def pick_hashtags(raw, body, x_trends=()):
+    """Valid, distinct hashtags from Gemini's answer, as many as fit in the tweet.
+    Tags that are on X's live trending list go first."""
+    tags, seen = [], {g.lower() for g in config.TRENDING.get("generic_hashtags", [])}
+    for t in re.findall(r"#[^\s#]+", tag(raw, "hashtags")):
+        t = t.strip(".,;:!?\"'")
+        if HASHTAG_RE.match(t) and not t[1:].isdigit() and t[1:].lower() not in seen:
+            seen.add(t[1:].lower())
+            tags.append(t)
+    live = {n.lower() for n, _ in x_trends}
+    tags.sort(key=lambda t: t.lower() not in live)  # stable: live trends first, Gemini's order otherwise
+    tags = tags[:config.TRENDING["max_hashtags"]]
+    while tags and x_length(body + "\n\n" + " ".join(tags)) > MAX_LEN:
+        tags.pop()
+    return tags
+
+
+def make_trending_post(history):
+    old = [p for p in history["posts"] if is_trending(p)]
+    recent_topics = [p["topic"] for p in old[-config.TRENDING["skip_recent_topics"]:] if p.get("topic")]
+    recent = [p["text"] for p in history["posts"][-6:] if p["pillar"] != "shayari"]
+    x_trends = fetch_x_trends()  # read once per post, not per retry (each read is paid)
+    for _ in range(4):
+        raw = generate_trending(trending_prompt(recent_topics, recent, x_trends))
+        topic = tag(raw, "topic") or None
+        body = re.sub(r"(^|\s)#\w+", "", clean(f"<tweet>{tag(raw, 'tweet')}</tweet>")).strip()
+        if not body:
+            print("Empty tweet after cleaning, retrying.")
+            continue
+        if sounds_like_ai(body):
+            print(f"Sounds AI-written ({sounds_like_ai(body)!r}), retrying.")
+            continue
+        if too_similar(body, history):
+            print("Too similar to a recent post, retrying.")
+            continue
+        tags = pick_hashtags(raw, body, x_trends)
+        text = body + ("\n\n" + " ".join(tags) if tags else "")
+        if x_length(text) > MAX_LEN:
+            print(f"Too long ({x_length(text)} chars), retrying.")
+            continue
+        print(f"Trending story: {topic}")
+        return {"pillar": "trending", "topic": topic, "text": text}
+    raise RuntimeError("Could not produce a usable trending post after 4 tries.")
+
+
 def attach_image(post, history):
     """Adds post['image'] = {'bytes', 'alt', 'info'} when a good image is available."""
     import images
@@ -330,9 +507,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="generate and print, don't post")
     ap.add_argument("--force", action="store_true", help="ignore the schedule")
+    ap.add_argument("--trending", action="store_true", help="with --force: make a trending post")
     args = ap.parse_args()
     dry = args.dry_run or env_flag("DRY_RUN")
     force = args.force or env_flag("FORCE")
+    trending_only = args.trending or env_flag("TRENDING")
 
     history = load_json(HISTORY_FILE, {"posts": []})
     now = datetime.now(TZ)
@@ -341,12 +520,23 @@ def main():
         return
     if not dry and config.LEARNING.get("enabled") and os.environ.get("X_ACCESS_TOKEN"):
         maybe_learn(history)
-    slot = f"{now:%Y-%m-%d}-manual-{now:%H%M}" if force else due_slot(now, history)
+    trending = False
+    if force:
+        slot = f"{now:%Y-%m-%d}-manual-{now:%H%M}"
+        trending = trending_only
+    else:
+        slot = due_slot(now, history)
+        if not slot and config.TRENDING.get("enabled"):
+            slot = due_slot(now, history, trending=True)
+            trending = bool(slot)
     if not slot:
         return
 
-    post = make_post(history)
-    attach_image(post, history)
+    if trending:
+        post = make_trending_post(history)
+    else:
+        post = make_post(history)
+        attach_image(post, history)
     text, image = post["text"], post.get("image")
     print(f"\n----- [{post['pillar']}] {x_length(text)} chars"
           f"{' + image' if image else ''} -----\n{text}\n" + "-" * 40)

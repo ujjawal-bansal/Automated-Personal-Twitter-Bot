@@ -8,6 +8,8 @@ Each post is either an AI-written tweet from one of five themes (mind, ancient m
 - History, ancient mysteries, philosophy and prophecy posts *sometimes* get a real **public-domain** image from Wikimedia Commons (a sculpture, manuscript, painting, or site photo). Gemini suggests a search, the bot keeps only public-domain/CC0 results, then Gemini looks at the candidates and picks the best one, or none. If nothing fits, the post goes out as text.
 - Geopolitics posts stay text-only.
 
+**Trending posts (separate, on top of the above):** every 2 days (3–4 a week), at a random time between 1:00 and 4:00 PM IST, the bot reads X's live trending lists (India and Worldwide) and Gemini picks a real news story from them in crypto, US politics, sports, protests, tech, India news or geopolitics. Gemini checks the facts with Google Search, writes one tweet in the same voice, and adds up to 3 hashtags for that story (ones on X's live list go first). It skips deaths, disasters, communal violence and unconfirmed rumours. Settings are in `TRENDING` in `config.py` (set `"enabled": False` to switch it off). If X's trends can't be read, Gemini finds a trending story with Google Search alone. The trends read uses the same X API key and secret, no new secret needed. To read other places, change `x_trends` (23424977 = United States), or empty it to skip X trends.
+
 Runs on GitHub Actions. No server, no laptop needs to stay on.
 
 ## What it costs
@@ -16,6 +18,7 @@ Runs on GitHub Actions. No server, no laptop needs to stay on.
 |---|---|
 | GitHub Actions | Free. About 400 of the 2,000 free minutes per month, even for a private repo |
 | Gemini API | Free tier, including Google Search for the geopolitics posts |
+| Trending posts | About $0.55/month extra on X: $0.015 for the post plus $0.010 for each of the 2 trends lists read (India + Worldwide), every 2 days. A **trending-dry-run** also reads the lists, so it costs $0.02. Gemini search is free. About 250 more GitHub minutes/month for the afternoon checks |
 | X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$0.15–0.25/month** at one post every 3–4 days. Posts with links cost $0.20 each, so the bot strips links |
 | Weekly learning | About $0.10/month: reading your own posts' stats is $0.001 per post |
 | Images | Free. Cards are drawn by the code; Commons images are public domain |
@@ -59,6 +62,7 @@ Then check **Settings → Actions → General → Workflow permissions** and cho
 1. Open the **Actions** tab → **Post to X** → **Run workflow** → mode **dry-run**.
 2. Open the run and read the log. You'll see the tweet it *would* have posted. If it chose an image, scroll to the bottom of the run page and download the **preview** artifact to see it. Run it a few times to get a feel for the voice.
 3. When you're happy, run it once with **post-now** to confirm posting works.
+4. For trending posts the modes are **trending-dry-run** (show one, don't post) and **trending-now** (post one now).
 
 After that, it runs by itself. If a run ever fails, GitHub emails you.
 

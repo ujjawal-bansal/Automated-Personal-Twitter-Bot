@@ -2,17 +2,18 @@ name: Post to X
 
 on:
   schedule:
-    # Cron is in UTC (IST minus 5:30). The bot checks twice an hour from 6:47 PM to
-    # 12:17 AM IST and only posts on a posting day, after that day's random time
-    # (see config.POST_EVERY_DAYS and config.WINDOWS).
+    # Cron is in UTC (IST minus 5:30). The bot checks twice an hour from 12:47 to 4:17 PM IST
+    # (trending posts, see config.TRENDING) and from 6:47 PM to 12:17 AM IST (normal posts,
+    # see config.POST_EVERY_DAYS and config.WINDOWS). It only posts on a posting day, after
+    # that day's random time; most runs just check and stop.
     # Odd minutes on purpose: GitHub drops many runs scheduled at :00 and :30.
-    - cron: "17,47 13-18 * * *"
+    - cron: "17,47 7-10,13-18 * * *"
   workflow_dispatch:
     inputs:
       mode:
-        description: "dry-run = show the tweet without posting, post-now = post immediately, learn-now = update the weekly report and pillar weights"
+        description: "dry-run = show a normal tweet without posting, post-now = post a normal tweet now, trending-dry-run = show a trending tweet without posting, trending-now = post a trending tweet now, learn-now = update the weekly report and pillar weights"
         type: choice
-        options: [dry-run, post-now, learn-now]
+        options: [dry-run, post-now, trending-dry-run, trending-now, learn-now]
         default: dry-run
 
 permissions:
@@ -48,8 +49,9 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
           SCHEDULE_SEED: ${{ secrets.SCHEDULE_SEED }}
-          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' }}
-          FORCE: ${{ github.event.inputs.mode == 'dry-run' || github.event.inputs.mode == 'post-now' }}
+          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' || github.event.inputs.mode == 'trending-dry-run' }}
+          FORCE: ${{ contains(fromJSON('["dry-run","post-now","trending-dry-run","trending-now"]'), github.event.inputs.mode) }}
+          TRENDING: ${{ github.event.inputs.mode == 'trending-dry-run' || github.event.inputs.mode == 'trending-now' }}
           LEARN_ONLY: ${{ github.event.inputs.mode == 'learn-now' }}
         run: python bot.py
 
@@ -62,7 +64,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Save post history, weights and report
-        if: github.event.inputs.mode != 'dry-run'
+        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'trending-dry-run'
         run: |
           git config user.name "x-bot"
           git config user.email "x-bot@users.noreply.github.com"

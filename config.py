@@ -197,3 +197,43 @@ BANNED_PATTERNS = [
     r"\bhuman condition\b", r"\bin an age of\b", r"\bmodern[- ]day\b", r"\bancient wisdom\b",
     r"^\s*(in a world|ever wondered|here['’]s the thing|imagine|unpopular opinion|what if)\b",
 ]
+
+# ---------------------------------------------------------------- trending posts
+# A second, separate post type that reacts to whatever big story is trending right now
+# (crypto hacks, US politics, sports, protests...) and adds trending hashtags at the end.
+# It runs on its own schedule next to the normal posts above and never replaces them.
+# The bot first reads X's real trending list (see "x_trends" below), then Gemini picks a story
+# from it and checks the facts with Google Search (free). If X's list can't be read, Gemini
+# finds a trending story with Google Search alone.
+# Cost per trending post: about $0.015 for the post + $0.010 per trends list read on X.
+# With 2 lists, about $0.035 per post, so about $0.55/month at one post every 2 days.
+TRENDING = {
+    "enabled": True,
+    "every_days": (2, 2),             # one trending post every 2 days (3-4 a week)
+    "window": ("13:00", "16:00"),     # afternoon IST, so it never clashes with the evening post
+    "catch_up_until": "18:30",        # if GitHub skipped the afternoon runs, still post up to this time
+    "max_hashtags": 3,                # hashtags at the end of the tweet (X suggests 1-2; 3 is the cap)
+    "skip_recent_topics": 10,
+    # X's trending lists to read, by place ID ("WOEID"). Each read costs $0.010 on X.
+    # 23424848 = India, 1 = Worldwide, 23424977 = United States. Empty list = don't read X trends.
+    "x_trends": [23424848, 1],
+    "x_trends_count": 30,             # how many trends to read from each list (max 50)         # don't repeat any of the last 10 trending stories
+    "categories": [
+        "crypto (hacks, exploits, big market moves, regulation)",
+        "US politics and elections",
+        "sports (cricket, football, big tournaments and results)",
+        "protests and mass movements around the world",
+        "big tech and AI news",
+        "India's national news and politics",
+        "geopolitics, wars and diplomacy",
+    ],
+    # Stories the bot never touches, because a hashtag post on them looks like cashing in.
+    "avoid": [
+        "deaths of private people, accidents, disasters or attacks with casualties",
+        "communal or religious violence",
+        "rumours not confirmed by mainstream news",
+        "anything about minors",
+    ],
+    # Hashtags that are too generic to help; dropped if Gemini suggests them.
+    "generic_hashtags": ["news", "breaking", "breakingnews", "trending", "viral", "latest", "update", "india", "world"],
+}

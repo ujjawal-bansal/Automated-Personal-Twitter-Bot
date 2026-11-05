@@ -74,7 +74,8 @@ Each post comes from one of six **content pillars**. The bot rotates through the
 - **Shayari comes from a curated file, not scraping.** Scraping poetry sites breaks their terms and is fragile.
 - **The seeded shayari is public domain only:** Ghalib, Mir, Momin, Dagh, Iqbal ("Saare Jahan Se Achha", 1904) and Kabir, 17 couplets. Jaun Elia, Faiz and other modern poets are still under copyright, so Claude doesn't add their couplets. I can add my own choices to the file myself.
 - **Fully automatic posting**, by my choice.
-- **No automation that risks the account:** no auto-follow, auto-like, auto-reply to strangers or trending-hashtag posting.
+- **No automation that risks the account:** no auto-follow, auto-like or auto-reply to strangers.
+- **Trending posts with hashtags (added Nov 2026, my call).** For growth I chose a separate trending post type every 2 days (1–4 PM IST) with up to 3 trending hashtags, overriding the old "no hashtags / no trending-hashtag posting" rule for this post type only. Claude flagged the spam/reach risk of automated hashtag posts; the normal posts stay hashtag-free. Story picked by Gemini from X's live trends (GET /2/trends/by/woeid, India + Worldwide, $0.010 per read, app-only token made from the API key/secret) with facts from Google Search; falls back to search only. Settings in `config.TRENDING`.
 
 ---
 
