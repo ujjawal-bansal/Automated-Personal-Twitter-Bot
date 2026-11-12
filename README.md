@@ -8,7 +8,7 @@ Each post is either an AI-written tweet from one of five themes (mind, ancient m
 - History, ancient mysteries, philosophy and prophecy posts *sometimes* get a real **public-domain** image from Wikimedia Commons (a sculpture, manuscript, painting, or site photo). Gemini suggests a search, the bot keeps only public-domain/CC0 results, then Gemini looks at the candidates and picks the best one, or none. If nothing fits, the post goes out as text.
 - Geopolitics posts stay text-only.
 
-**Trending posts (separate, on top of the above):** every 2 days (3–4 a week), at a random time between 1:00 and 4:00 PM IST, the bot reads X's live trending lists (India and Worldwide) and Gemini picks a real news story from them in crypto, US politics, sports, protests, tech, India news or geopolitics. Gemini checks the facts with Google Search, writes one tweet in the same voice, and adds up to 3 hashtags for that story (ones on X's live list go first). It skips deaths, disasters, communal violence and unconfirmed rumours. Settings are in `TRENDING` in `config.py` (set `"enabled": False` to switch it off). If X's trends can't be read, Gemini finds a trending story with Google Search alone. The trends read uses the same X API key and secret, no new secret needed. To read other places, change `x_trends` (23424977 = United States), or empty it to skip X trends.
+**Trending posts (separate, on top of the above):** once a day, at a random time between 1:00 and 4:00 PM IST, the bot reads X's live trending lists (India and Worldwide) and Gemini picks a real news story from them in crypto, US politics, sports, protests, tech, India news or geopolitics. Gemini checks the facts with Google Search, writes one tweet in the same voice, and adds up to 3 hashtags for that story (ones on X's live list go first). It skips deaths, disasters, communal violence and unconfirmed rumours. Settings are in `TRENDING` in `config.py` (set `"enabled": False` to switch it off). If X's trends can't be read, Gemini finds a trending story with Google Search alone. The trends read uses the same X API key and secret, no new secret needed. To read other places, change `x_trends` (23424977 = United States), or empty it to skip X trends.
 
 Runs on GitHub Actions. No server, no laptop needs to stay on.
 
@@ -16,9 +16,9 @@ Runs on GitHub Actions. No server, no laptop needs to stay on.
 
 | Piece | Cost |
 |---|---|
-| GitHub Actions | Free. About 400 of the 2,000 free minutes per month, even for a private repo |
+| GitHub Actions | Free. About 900 of the 2,000 free minutes per month with the cron-job.org trigger, even for a private repo |
 | Gemini API | Free tier, including Google Search for the geopolitics posts |
-| Trending posts | About $0.55/month extra on X: $0.015 for the post plus $0.010 for each of the 2 trends lists read (India + Worldwide), every 2 days. A **trending-dry-run** also reads the lists, so it costs $0.02. Gemini search is free. About 250 more GitHub minutes/month for the afternoon checks |
+| Trending posts | About $1.05/month extra on X: $0.015 for the post plus $0.010 for each of the 2 trends lists read (India + Worldwide), once a day. A **trending-dry-run** also reads the lists, so it costs $0.02. Gemini search is free. If a run misses the afternoon, the post goes out later that day (up to midnight) |
 | X API | Pay-per-use, about $0.015 per post. Image posts may cost a little more (the upload may be billed separately, plus $0.005 for alt text). Expect roughly **$0.15–0.25/month** at one post every 3–4 days. Posts with links cost $0.20 each, so the bot strips links |
 | Weekly learning | About $0.10/month: reading your own posts' stats is $0.001 per post |
 | Images | Free. Cards are drawn by the code; Commons images are public domain |
@@ -80,6 +80,34 @@ After that, it runs by itself. If a run ever fails, GitHub emails you.
 - **Phrases that sound like AI:** `BANNED_PATTERNS` in `config.py`. A draft containing one is thrown away and rewritten. Add any phrase that annoys you.
 - **Pause the bot:** Actions tab → Post to X → **⋯ → Disable workflow**.
 - **See what was posted:** `data/history.json`.
+
+## Reliable timing (cron-job.org)
+
+GitHub's free scheduler skips most runs (in early November only 1-2 a day fired, so the afternoon trending post never went out), so a free service called cron-job.org starts the bot every 30 minutes instead. Extra runs are harmless: the bot only posts when a slot is due, and never twice for the same slot.
+
+**1. Make a GitHub token (only for this repo)**
+1. On github.com, click your profile picture (top right) → **Settings**
+2. Left side, at the very bottom: **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**
+3. Token name: `cron-job`. Expiration: **Custom**, pick a date a year from now
+4. Repository access: **Only select repositories** → choose **x-bot**
+5. **Permissions** → **Repository permissions** → **Actions** → **Read and write**
+6. **Generate token**, then copy it (it starts with `github_pat_`). It's shown only once.
+
+**2. Set up cron-job.org**
+1. Go to https://cron-job.org → **Sign up** (free) → verify your email → log in
+2. **Cronjobs** → **Create cronjob**
+3. Title: `X bot`. URL: `https://api.github.com/repos/VashuVats/x-bot/actions/workflows/post.yml/dispatches`
+4. Execution schedule: **Custom**. Minutes: `7` and `37`. Hours: `12` to `23`. Days, months, weekdays: every. Timezone: **Asia/Kolkata**
+5. Open the **Advanced** tab:
+   - Request method: **POST**
+   - Headers, add three:
+     - `Authorization` = `Bearer ` followed by your token (with a space after Bearer)
+     - `Accept` = `application/vnd.github+json`
+     - `X-GitHub-Api-Version` = `2022-11-28`
+   - Request body: `{"ref":"main","inputs":{"mode":"auto"}}`
+6. **Create**, then on the job click **Test run**. A response of `204` means it worked, and a new "Post to X" run appears in the Actions tab.
+
+This uses about 24 GitHub runs a day, roughly 750 of the 2,000 free minutes a month. When the token expires, make a new one and paste it into the `Authorization` header.
 
 ## Weekly self-learning
 

@@ -8,12 +8,15 @@ on:
     # that day's random time; most runs just check and stop.
     # Odd minutes on purpose: GitHub drops many runs scheduled at :00 and :30.
     - cron: "17,47 7-10,13-18 * * *"
+    # GitHub still skips most scheduled runs (often only 1-2 a day fire), so cron-job.org also
+    # starts this workflow every 30 minutes with mode "auto" (README: "Reliable timing").
+    # Extra runs never double-post.
   workflow_dispatch:
     inputs:
       mode:
-        description: "dry-run = show a normal tweet without posting, post-now = post a normal tweet now, trending-dry-run = show a trending tweet without posting, trending-now = post a trending tweet now, learn-now = update the weekly report and pillar weights"
+        description: "dry-run = show a normal tweet without posting, post-now = post a normal tweet now, trending-dry-run = show a trending tweet without posting, trending-now = post a trending tweet now, learn-now = update the weekly report and pillar weights, auto = same as a scheduled run (used by cron-job.org)"
         type: choice
-        options: [dry-run, post-now, trending-dry-run, trending-now, learn-now]
+        options: [dry-run, post-now, trending-dry-run, trending-now, learn-now, auto]
         default: dry-run
 
 permissions:
@@ -36,7 +39,15 @@ jobs:
           cache: pip
 
       - name: Install text-shaping libraries (for Hindi/Urdu cards)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libraqm0 libfribidi0
+        # Ubuntu's servers sometimes fail. Try 3 times; if it still fails, carry on:
+        # the bot then posts shayari without a card instead of skipping the whole run.
+        continue-on-error: true
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -qq && sudo apt-get install -y -qq libraqm0 libfribidi0 && exit 0
+            echo "apt failed (try $i), retrying in 20s"; sleep 20
+          done
+          exit 1
 
       - name: Install Python packages
         run: pip install -r requirements.txt

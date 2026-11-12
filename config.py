@@ -206,12 +206,12 @@ BANNED_PATTERNS = [
 # from it and checks the facts with Google Search (free). If X's list can't be read, Gemini
 # finds a trending story with Google Search alone.
 # Cost per trending post: about $0.015 for the post + $0.010 per trends list read on X.
-# With 2 lists, about $0.035 per post, so about $0.55/month at one post every 2 days.
+# With 2 lists, about $0.035 per post, so about $1.05/month at one post a day.
 TRENDING = {
     "enabled": True,
-    "every_days": (2, 2),             # one trending post every 2 days (3-4 a week)
-    "window": ("13:00", "16:00"),     # afternoon IST, so it never clashes with the evening post
-    "catch_up_until": "18:30",        # if GitHub skipped the afternoon runs, still post up to this time
+    "every_days": (1, 1),             # one trending post every day (set (2, 2) to slow down later)
+    "window": ("13:00", "16:00"),     # afternoon IST, so it usually goes out before the evening post
+    "catch_up_until": "23:59",        # GitHub skips many runs, so a missed trending post stays due until midnight
     "max_hashtags": 3,                # hashtags at the end of the tweet (X suggests 1-2; 3 is the cap)
     "skip_recent_topics": 10,
     # X's trending lists to read, by place ID ("WOEID"). Each read costs $0.010 on X.
