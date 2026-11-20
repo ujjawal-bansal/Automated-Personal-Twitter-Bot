@@ -1,1 +1,584 @@
-{"posts": []}
+{
+  "posts": [
+    {
+      "slot": "2026-10-08-manual-2128",
+      "time": "2026-10-08T21:28+05:30",
+      "pillar": "shayari",
+      "topic": null,
+      "text": "सारे जहाँ से अच्छा हिन्दोस्ताँ हमारा\nहम बुलबुलें हैं इस की ये गुलसिताँ हमारा\n\n— अल्लामा इक़बाल",
+      "id": "2108225482990788787",
+      "image": {
+        "type": "card"
+      }
+    },
+    {
+      "slot": "2026-10-08-manual-2129",
+      "time": "2026-10-08T21:29+05:30",
+      "pillar": "history",
+      "topic": "Chola naval power across Southeast Asia",
+      "text": "Rajendra Chola's ships projected power across the Bay. Not just conquest, but a logistical network, shaping Southeast Asian trade. We speak of global supply chains now, but the Cholas understood it: maritime dominance is sovereignty.",
+      "id": "2108225821253288382",
+      "image": null,
+      "metrics": {
+        "impression_count": 43,
+        "like_count": 3,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-09-manual-1115",
+      "time": "2026-10-09T11:15+05:30",
+      "pillar": "geopolitics",
+      "topic": "rare earths and critical minerals",
+      "text": "AI now helps discover magnets without rare earths. A quiet revolution. The geopolitical chess board shifts, not by conquering mines, but by rendering them obsolete. Real power isn't in scarce elements, but in infinite ingenuity.",
+      "id": "2108433868671857038",
+      "image": null
+    },
+    {
+      "slot": "2026-10-09-afternoon",
+      "time": "2026-10-09T15:18+05:30",
+      "pillar": "prophecy",
+      "topic": "the Dajjal and the Antichrist as archetypes of deception",
+      "text": "Prophecy spoke of the Antichrist's deception, the Dajjal's single eye. Perhaps it's not one tyrant, but the collective hallucination of screens, the consensus reality built by algorithms. Maya in the Kali Yuga.",
+      "id": "2108494911813083445",
+      "image": null,
+      "metrics": {
+        "impression_count": 30,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-10-afternoon",
+      "time": "2026-10-10T14:43+05:30",
+      "pillar": "history",
+      "topic": "the Gupta golden age",
+      "text": "The Gupta golden age blossomed with zero and infinity. Not just mathematical insights, but a worldview. Prosperity came from a culture valuing abstraction, not just utility. We chase immediate returns; they built timeless frameworks. A different kind of capital.",
+      "id": "2108848396480229778",
+      "image": {
+        "type": "commons",
+        "title": "File:Sarnath standing Buddha 5th century.jpg",
+        "page": "https://commons.wikimedia.org/wiki/File:Sarnath_standing_Buddha_5th_century.jpg"
+      },
+      "metrics": {
+        "impression_count": 79,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-10-evening",
+      "time": "2026-10-10T23:09+05:30",
+      "pillar": "geopolitics",
+      "topic": "rare earths and critical minerals",
+      "text": "Once, Europe's industries felt the pinch of distant rare earth chokepoints. Now, the EU names 46 strategic projects, funneling €21.1 billion across 16 nations to forge its own critical mineral sovereignty. The world remakes its resource map.",
+      "id": "2108975651395137721",
+      "image": null,
+      "metrics": {
+        "impression_count": 48,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-11-afternoon",
+      "time": "2026-10-11T14:59+05:30",
+      "pillar": "shayari",
+      "topic": null,
+      "text": "मौत का एक दिन मुअय्यन है\nनींद क्यूँ रात भर नहीं आती\n\n— मिर्ज़ा ग़ालिब",
+      "id": "2109214858092667327",
+      "image": {
+        "type": "card"
+      },
+      "metrics": {
+        "impression_count": 277,
+        "like_count": 14,
+        "reply_count": 0,
+        "retweet_count": 1,
+        "quote_count": 0,
+        "bookmark_count": 1
+      }
+    },
+    {
+      "slot": "2026-10-12-afternoon",
+      "time": "2026-10-12T15:29+05:30",
+      "pillar": "history",
+      "topic": "the Mongols and the speed of empire",
+      "text": "The Mongol Empire: from steppe to Danube in decades. No satellites, no fiber optics. How did they achieve such continental scale, such speed? Was it just horse and bow, or a forgotten science of command, an ancient algorithm for total conquest that eludes modern understanding?",
+      "id": "2109584791859351809",
+      "image": null
+    },
+    {
+      "slot": "2026-10-12-evening",
+      "time": "2026-10-12T21:47+05:30",
+      "pillar": "prophecy",
+      "topic": "the WEF and the 'NWO' narrative: why it resonates",
+      "text": "The unease around the 'New World Order' narrative isn't just paranoia. It’s the human instinct sensing a global architecture forming, a control grid seeking total legibility. A new Maya.",
+      "id": "2109679942577303963",
+      "image": null,
+      "metrics": {
+        "impression_count": 59,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-13-manual-1506",
+      "time": "2026-10-13T15:06+05:30",
+      "pillar": "mind",
+      "topic": "celebrity and sports worship as a symptom of lost purpose",
+      "text": "When we collectively elevate performers and athletes to the status of demi-gods, are we merely reflecting a deeper societal void, a relinquishing of our own pursuit of Dharma?",
+      "id": "2109941537257775374",
+      "image": {
+        "type": "commons",
+        "title": "File:Gladiators, fragment, Roman, 300-400 AD, marble and limestone mosaic - Galleria Borghese - Rome, Italy - DSC04931.jpg",
+        "page": "https://commons.wikimedia.org/wiki/File:Gladiators,_fragment,_Roman,_300-400_AD,_marble_and_limestone_mosaic_-_Galleria_Borghese_-_Rome,_Italy_-_DSC04931.jpg"
+      },
+      "metrics": {
+        "impression_count": 108,
+        "like_count": 3,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-13-evening",
+      "time": "2026-10-13T23:18+05:30",
+      "pillar": "geopolitics",
+      "topic": "drones and how modern warfare is changing",
+      "text": "Soldiers once faced foes with their own eyes. Now, one U.S. Army operator commands twenty-one drones, using swarms for both strike and strategic deception. The battlefield turns from human will to algorithmic puppetry, a new form of Maya.",
+      "id": "2110065179929248029",
+      "image": null
+    },
+    {
+      "slot": "2026-10-14-afternoon",
+      "time": "2026-10-14T14:11+05:30",
+      "pillar": "ancient",
+      "topic": "Hopi world cycles and the Mayan calendar",
+      "text": "The Hopi's emerging worlds and the Maya's great cycles speak of Yugas, not linear progress.",
+      "id": "2110289862016294923",
+      "image": null,
+      "metrics": {
+        "impression_count": 28,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-15-afternoon",
+      "time": "2026-10-15T13:46+05:30",
+      "pillar": "mind",
+      "topic": "the dangerous art of optimistic delusion",
+      "text": "Optimistic delusion isn't resilience. It's a refusal to map the terrain, to game out the adversaries. History shows that societies collapse not from lack of hope, but from an inability to confront brutal facts. A collective hallucination ensures eventual defeat.",
+      "id": "2110646000549560822",
+      "image": null,
+      "metrics": {
+        "impression_count": 86,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-15-evening",
+      "time": "2026-10-15T23:24+05:30",
+      "pillar": "history",
+      "topic": "the Mongols and the speed of empire",
+      "text": "The Mongol Empire's speed wasn't just horsepower and brutal will. It was the ruthless simplicity of their command structure encountering the Byzantine complexity of decaying empires. Unburdened by administration, they moved like a blade through butter.",
+      "id": "2110791373381349472",
+      "image": null,
+      "metrics": {
+        "impression_count": 18,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-16-afternoon",
+      "time": "2026-10-16T18:44+05:30",
+      "pillar": "ancient",
+      "topic": "Sumerian and Akkadian texts and the Anunnaki myths",
+      "text": "The Anunnaki myth: sky-gods shaping humanity. Is it a divine creation story, or a coded account of ancient power dictating our collective purpose from above?",
+      "id": "2111083499876753742",
+      "image": null,
+      "metrics": {
+        "impression_count": 17,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-16-evening",
+      "time": "2026-10-16T22:55+05:30",
+      "pillar": "shayari",
+      "topic": null,
+      "text": "पत्ता पत्ता बूटा बूटा हाल हमारा जाने है\nजाने न जाने गुल ही न जाने बाग़ तो सारा जाने है\n\n— मीर तक़ी मीर",
+      "id": "2111146583198707929",
+      "image": {
+        "type": "card"
+      },
+      "metrics": {
+        "impression_count": 24,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-17-afternoon",
+      "time": "2026-10-17T17:16+05:30",
+      "pillar": "history",
+      "topic": "Alexander and Porus at the Hydaspes",
+      "text": "Alexander's famed magnanimity towards Porus after Hydaspes? A masterful stroke of realpolitik, not mere virtue. Better to win an unwilling ally than face a relentless foe. Convert your greatest threat into your greatest asset.",
+      "id": "2111423627711164602",
+      "image": null,
+      "metrics": {
+        "impression_count": 8,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-17-evening",
+      "time": "2026-10-17T19:57+05:30",
+      "pillar": "ancient",
+      "topic": "Agartha and hidden-world legends",
+      "text": "Legends of Agartha whisper of an unseen realm governing the surface. What if our modern Agartha isn't underground, but in the intricate algorithms and financial flows that orchestrate our lives, unseen by most? The true controllers remain hidden, as always.",
+      "id": "2111464176069624199",
+      "image": {
+        "type": "commons",
+        "title": "File:Kircher - Mundus Subterraneus p558.jpg",
+        "page": "https://commons.wikimedia.org/wiki/File:Kircher_-_Mundus_Subterraneus_p558.jpg"
+      },
+      "metrics": {
+        "impression_count": 19,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-18-afternoon",
+      "time": "2026-10-18T18:06+05:30",
+      "pillar": "geopolitics",
+      "topic": "sanctions as a financial weapon",
+      "text": "Congress passed sanctions as a financial weapon against Russia. Trump just waived them, citing \"national interest.\" The battlefield shifted, revealing economic warfare as a commander's choice, not an inherent market force.",
+      "id": "2111798640083697826",
+      "image": null,
+      "metrics": {
+        "impression_count": 10,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-18-evening",
+      "time": "2026-10-18T21:38+05:30",
+      "pillar": "mind",
+      "topic": "Alan Watts on the ego and the present moment",
+      "text": "The ego once seemed a sturdy vessel to cross the ocean of being. Now it's a phantom ship, forever chasing horizons, never dropping anchor in the present moment.",
+      "id": "2111852046097715397",
+      "image": null,
+      "metrics": {
+        "impression_count": 13,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-19-afternoon",
+      "time": "2026-10-19T14:20+05:30",
+      "pillar": "shayari",
+      "topic": null,
+      "text": "बस-कि दुश्वार है हर काम का आसाँ होना\nआदमी को भी मयस्सर नहीं इंसाँ होना\n\n— मिर्ज़ा ग़ालिब",
+      "id": "2112103967790440641",
+      "image": {
+        "type": "card"
+      },
+      "metrics": {
+        "impression_count": 26,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-19-evening",
+      "time": "2026-10-19T21:57+05:30",
+      "pillar": "geopolitics",
+      "topic": "India's strategic position between great powers",
+      "text": "India's Jaishankar: 'A power in the middle,' not a middle power. This is Chanakya's wisdom in action. True strategic autonomy isn't isolation. It's mastering the art of dynamic leverage between competing poles, maximizing one's own artha. Ancient statecraft endures.",
+      "id": "2112219111107563880",
+      "image": null,
+      "metrics": {
+        "impression_count": 25,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-23-evening",
+      "time": "2026-10-23T23:22+05:30",
+      "pillar": "prophecy",
+      "topic": "centralized digital infrastructure and single points of control",
+      "text": "Centralized digital infrastructure isn't inherently evil. For critical systems, a single, highly secured point of control can actually be more robust than many distributed, vulnerable nodes.",
+      "id": "2113690165403168847",
+      "image": null,
+      "metrics": {
+        "impression_count": 17,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-10-31-evening",
+      "time": "2026-10-31T23:13+05:30",
+      "pillar": "shayari",
+      "topic": null,
+      "text": "हज़ारों ख़्वाहिशें ऐसी कि हर ख़्वाहिश पे दम निकले\nबहुत निकले मिरे अरमान लेकिन फिर भी कम निकले\n\n— मिर्ज़ा ग़ालिब",
+      "id": "2116586762772594863",
+      "image": {
+        "type": "card"
+      },
+      "metrics": {
+        "impression_count": 9,
+        "like_count": 0,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-05-manual-1335",
+      "time": "2026-11-05T13:35+05:30",
+      "pillar": "trending",
+      "topic": "Nitesh Tiwari's Ramayana movie",
+      "text": "Nitesh Tiwari's Ramayana: Part 1 is out. This thing is a two-part epic, reportedly made on a combined budget of ₹4,000 crore, with VFX by Oscar-winning DNEG. The Ravana-Jatayu fight alone took six and a half years to complete. The scale is just wild.\n\n#RamayanaMovie",
+      "id": "2118253450345500727",
+      "image": null,
+      "metrics": {
+        "impression_count": 311,
+        "like_count": 4,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-05-evening",
+      "time": "2026-11-05T21:59+05:30",
+      "pillar": "history",
+      "topic": "Alexander and Porus at the Hydaspes",
+      "text": "Alexander at the Hydaspes. The whole feigned river crossing for days to distract Porus. Then flanking the war elephants with cavalry under Coenus and Craterus. That was a serious move.",
+      "id": "2118380333423013906",
+      "image": null,
+      "metrics": {
+        "impression_count": 30,
+        "like_count": 2,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-09-evening",
+      "time": "2026-11-09T23:02+05:30",
+      "pillar": "ancient",
+      "topic": "the Mayan Long Count calendar",
+      "text": "The Mayan Long Count calendar wrapped up its 13th Baktun on December 21, 2012. What was their actual thinking behind that exact cycle length? Was it just a mathematical thing, or did they encode something more from observation?",
+      "id": "2119845512358568158",
+      "image": null,
+      "metrics": {
+        "impression_count": 16,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-12-trending",
+      "time": "2026-11-12T21:30+05:30",
+      "pillar": "trending",
+      "topic": "Nvidia CEO Resignation",
+      "text": "Jensen Huang out as Nvidia CEO, effective immediately. Colette Kress steps in as interim. Stock took a hit. The national security angles reported are a huge variable for a company central to AI infrastructure.\n\n#Nvidia #JensenHuang #ColetteKress",
+      "id": "2120909583510045101",
+      "image": null,
+      "metrics": {
+        "impression_count": 36,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-13-trending",
+      "time": "2026-11-13T20:54+05:30",
+      "pillar": "trending",
+      "topic": "Kalki Avatar Parikrama in Sambhal",
+      "text": "Sambhal is holding a 24 Kosi Parikrama today at the prophesied incarnation site of Kalki. It's wild how the expectation for Vishnu's final avatar, meant to end the Kali Yuga, still draws thousands.\n\n#WhoIsKalki",
+      "id": "2121263121021186477",
+      "image": null,
+      "metrics": {
+        "impression_count": 25,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-14-trending",
+      "time": "2026-11-14T19:40+05:30",
+      "pillar": "trending",
+      "topic": "India U19 Asia Cup Win",
+      "text": "India U19 chased 338 against Pakistan in the Asia Cup final, winning by one wicket on the last ball. Mohit Ulva's unbeaten 49 off 26 balls, coming in at No. 10, was something else. What a finish. Crazy match.\n\n#INDvsPAK #MohitUlva #IndiaU19",
+      "id": "2121606840865960413",
+      "image": null,
+      "metrics": {
+        "impression_count": 117,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-15-evening",
+      "time": "2026-11-15T20:16+05:30",
+      "pillar": "history",
+      "topic": "Chanakya's Arthashastra and statecraft",
+      "text": "Chanakya's Arthashastra described using 'vishakanyas', poison damsels, to eliminate rival rulers. A cold-blooded tactic for ancient statecraft.",
+      "id": "2121978134509523271",
+      "image": null,
+      "metrics": {
+        "impression_count": 24,
+        "like_count": 1,
+        "reply_count": 0,
+        "retweet_count": 0,
+        "quote_count": 0,
+        "bookmark_count": 0
+      }
+    },
+    {
+      "slot": "2026-11-16-trending",
+      "time": "2026-11-16T22:34+05:30",
+      "pillar": "trending",
+      "topic": "Imran Khan's health in jail",
+      "text": "Imran Khan wrote to Pakistan's top judges saying his health is bad and he fears he \"may not return alive\" from jail. He claims high blood pressure, lost vision, and 22-hour solitary confinement. That's a serious situation.\n\n#ImranKhansLifeIsAtRisk",
+      "id": "2122375409241391505",
+      "image": null
+    },
+    {
+      "slot": "2026-11-17-trending",
+      "time": "2026-11-17T22:24+05:30",
+      "pillar": "trending",
+      "topic": "MS Dhoni IPL Retirement",
+      "text": "MS Dhoni officially retired from playing in the IPL, now a CSK mentor for 2027. He missed 2026 due to injury, last played in IPL 2025. Ending like this is kind of classic for him, no big on-field send-off.\n\n#MSDhoni #WARRAFAREWELLFORDHOBI #CaptainCool",
+      "id": "2122735130439545085",
+      "image": null
+    },
+    {
+      "slot": "2026-11-18-evening",
+      "time": "2026-11-18T21:58+05:30",
+      "pillar": "history",
+      "topic": "the fall of Western Rome and the barbarian invasions",
+      "text": "How did the Visigoths actually get past the Aurelian Walls during the sack of Rome in 410 AD? The fortifications were serious.",
+      "id": "2123090953435037941",
+      "image": null
+    },
+    {
+      "slot": "2026-11-19-trending",
+      "time": "2026-11-19T22:05+05:30",
+      "pillar": "trending",
+      "topic": "Anthropic IPO",
+      "text": "Anthropic just went public today, IPOing at $83 a share and hitting a $1.5 trillion valuation. Biggest IPO ever, apparently. Crazy how much capital is flowing into AI.\n\n#Anthropic",
+      "id": "2123455331174867383",
+      "image": null
+    },
+    {
+      "slot": "2026-11-20-trending",
+      "time": "2026-11-20T21:40+05:30",
+      "pillar": "trending",
+      "topic": "Hodeidah Port Conflict",
+      "text": "Saudi-led coalition warning civilians to clear Hodeidah port before strikes. Houthis are threatening to hit Saudi Red Sea ports in response. The escalation keeps getting worse in Yemen. Wild.\n\n#ميناء_الحديده",
+      "id": "2123811407565385915",
+      "image": null
+    },
+    {
+      "slot": "2026-11-21-trending",
+      "time": "2026-11-21T20:53+05:30",
+      "pillar": "trending",
+      "topic": "Manchester City vs Fulham match",
+      "text": "Manchester City drew 1-1 with Fulham today. That's four Premier League games without a win for City. Haaland also had a goal disallowed for a foul on the keeper. Tough run for Maresca's side.\n\n#Fulham #ManCity #Haaland",
+      "id": "2124161923046588763",
+      "image": null
+    },
+    {
+      "slot": "2026-11-22-trending",
+      "time": "2026-11-22T20:49+05:30",
+      "pillar": "trending",
+      "topic": "Barcelona loses to Villarreal",
+      "text": "Barcelona lost 0-2 to Villarreal today at Camp Nou. Villarreal scored both goals in the first seven minutes. Surprising result for the La Liga leaders.\n\n#Barca #Barcelona #Villarreal",
+      "id": "2124523336319336809",
+      "image": null
+    }
+  ]
+}
