@@ -10,7 +10,7 @@ on:
         options: [dry-run, auto, learn-now]
         default: dry-run
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: personal-x-publisher
   cancel-in-progress: false
@@ -30,7 +30,7 @@ jobs:
         env:
           AGENT_ENABLED: ${{ vars.AGENT_ENABLED }}
           X_ACCOUNT_ID: '1703345238167924736'
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AGENT_STATE_KEY: ${{ secrets.AGENT_STATE_KEY }}
           POST_START_HOUR: ${{ vars.POST_START_HOUR || '12' }}
           POST_END_HOUR: ${{ vars.POST_END_HOUR || '16' }}
           AGENT_COMMONS_IMAGES: ${{ vars.AGENT_COMMONS_IMAGES }}

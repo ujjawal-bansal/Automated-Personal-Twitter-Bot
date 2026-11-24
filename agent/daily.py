@@ -125,8 +125,7 @@ def main():
         log('disabled')
         return
     from agent.publisher import Publisher
-    store=Ledger(os.environ['DATABASE_URL'],account)
-    store.initialise()
+    store=Ledger(account)
     pub=Publisher(account)
     if os.getenv('LEARN_ONLY','').lower()=='true':
         pub.verify()

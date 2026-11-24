@@ -1,4 +1,7 @@
 import os
+import subprocess
+import tempfile
+from pathlib import Path
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime,timedelta
@@ -119,14 +122,22 @@ class Editorial(unittest.TestCase):
         self.assertEqual(t.utcoffset(),timedelta(hours=5,minutes=30))
 
 
-@unittest.skipUnless(os.getenv('TEST_DATABASE_URL'),'requires isolated PostgreSQL')
-class Database(unittest.TestCase):
+class GitLedger(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.repo = Path(tmp.name) / 'checkout'
+        remote = Path(tmp.name) / 'origin.git'
+        subprocess.run(['git', 'init', '--bare', '-q', remote], check=True)
+        subprocess.run(['git', 'init', '-q', self.repo], check=True)
+        subprocess.run(['git', '-C', self.repo, 'remote', 'add', 'origin', remote], check=True)
+        key = patch.dict(os.environ, AGENT_STATE_KEY='integration-test-key')
+        key.start()
+        self.addCleanup(key.stop)
+        self.store = Ledger('42', self.repo)
+
     def test_concurrent_lease_and_recovery(self):
-        import uuid
-        from datetime import date
-        account=uuid.uuid4().hex
-        store=Ledger(os.environ['TEST_DATABASE_URL'],account)
-        store.initialise()
+        store = self.store
         day=datetime.now(learning.TZ).date()
         owners=[str(i) for i in range(8)]
         with ThreadPoolExecutor(8) as pool:
@@ -135,11 +146,24 @@ class Database(unittest.TestCase):
         owner=owners[wins.index(True)]
         self.assertFalse(store.intent(day,'other',DRAFT))
         self.assertTrue(store.intent(day,owner,DRAFT))
-        restart=Ledger(store.url,account)
+        restart=Ledger('42', self.repo)
         self.assertEqual(restart.pending()[0]['draft'],DRAFT)
         restart.finish(day,'1234')
+        restart.save_metrics('1234', {'like_count': 7})
+        self.assertEqual(restart.memory()[0]['metrics'], {'like_count': 7})
         self.assertFalse(restart.claim(day,'new'))
         self.assertEqual(restart.slot(day)['tweet_id'],'1234')
+
+
+    def test_wrong_key_fails_closed(self):
+        day = datetime.now(learning.TZ).date()
+        self.assertTrue(self.store.claim(day, 'owner'))
+        self.assertTrue(self.store.intent(day, 'owner', DRAFT))
+        raw = self.store.git('show', self.store.ref.replace('refs/heads/', 'refs/remotes/origin/') + ':ledger.enc').stdout
+        self.assertNotIn(DRAFT['text'].encode(), raw)
+        from cryptography.fernet import InvalidToken
+        with patch.dict(os.environ, AGENT_STATE_KEY='wrong-key'), self.assertRaises(InvalidToken):
+            Ledger('42', self.repo).claim(day, 'new')
 
 
 class Transport(unittest.TestCase):
@@ -166,15 +190,4 @@ class Transport(unittest.TestCase):
         pub=Mock()
         pub.read.return_value={'data':[{'id':'123','public_metrics':{'like_count':0}}]}
         learning.collect(store,pub,NOW)
-        self.assertEqual(store.sql.call_args.kwargs['metrics'],{'like_count':0})
-
-
-class LedgerTransport(unittest.TestCase):
-    def test_psql_connection_secrets_stay_off_command_line(self):
-        store=Ledger('postgresql://user:pass%40word@db.example:5433/memory?sslmode=require','42')
-        with patch('agent.store.subprocess.run',return_value=Mock(returncode=0,stdout='true\n')) as run:
-            self.assertTrue(store.claim(NOW.date(),'lease'))
-        args=run.call_args
-        self.assertNotIn('pass',str(args.args))
-        self.assertEqual(args.kwargs['env']['PGPASSWORD'],'pass@word')
-        self.assertEqual(args.kwargs['env']['PGSSLMODE'],'require')
+        store.save_metrics.assert_called_once_with('123', {'like_count':0})

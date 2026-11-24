@@ -14,8 +14,7 @@ def collect(store,x,now):
     for p in x.read('tweets',{'ids':','.join(pending),'tweet.fields':'public_metrics'}).get('data',[]):
         m=p.get('public_metrics')
         if isinstance(m,dict) and m:
-            store.sql("UPDATE agent_memory SET metrics=$data->'metrics' WHERE account=$account AND tweet_id=$data->>'id'",
-                      id=p['id'],metrics=m)
+            store.save_metrics(p['id'], m)
 
 
 def preferences(memory):
