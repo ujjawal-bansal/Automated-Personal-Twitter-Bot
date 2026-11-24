@@ -10,9 +10,38 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet
 
-from agent.learning import TZ
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo('Asia/Kolkata')
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def fingerprint(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def compact(state, day):
+    """Read the previous ledger format without dropping today's send intent."""
+    if 'topics' in state:
+        topics = state['topics']
+        slot = state['slot']
+    else:
+        posts = sorted(state['posts'], key=lambda p: datetime.fromisoformat(p['time']))
+        topics = [p['topic'] for p in posts if p.get('topic')]
+        slot = state['slots'].get(day)
+        if slot is None and posts:
+            last = posts[-1]
+            if datetime.fromisoformat(last['time']).astimezone(TZ).date().isoformat() == day:
+                slot = dict(day=day, state='published', tweet_id=last['id'])
+    if slot and slot['day'] != day:
+        slot = None
+    if slot and 'draft' in slot:
+        slot = slot.copy()
+        draft = slot.pop('draft')
+        if slot['state'] == 'sending':
+            slot.update(topic=draft['topic'], digest=fingerprint(draft['text']))
+    return dict(slot=slot, topics=topics[-10:])
 
 
 class Ledger:
@@ -36,19 +65,20 @@ class Ledger:
         return result
 
     def load(self):
+        day = datetime.now(TZ).date().isoformat()
         ref = self.git('ls-remote', '--exit-code', 'origin', self.ref, check=False)
         if ref.returncode == 2:
             posts = json.loads((ROOT / 'data/history.json').read_text())['posts']
-            return None, dict(posts=posts, slots={}, events=[])
+            return None, compact(dict(posts=posts, slots={}), day)
         if ref.returncode:
             raise RuntimeError('state_remote_unavailable')
         head = ref.stdout.split()[0].decode()
         self.git('fetch', '--quiet', '--no-tags', 'origin', head)
         encrypted = self.git('show', head + ':ledger.enc').stdout
-        return head, json.loads(zlib.decompress(self.cipher.decrypt(encrypted)))
+        return head, compact(json.loads(zlib.decompress(self.cipher.decrypt(encrypted))), day)
 
     def update(self, change):
-        # A normal push accepts only a fast-forward. Competing writers must
+        # A lease compares the exact previously observed ref. Competing writers must
         # reload and re-evaluate their transition before they can win.
         for _ in range(4):
             parent, state = self.load()
@@ -58,9 +88,9 @@ class Ledger:
             encrypted = self.cipher.encrypt(zlib.compress(encoded))
             blob = self.git('hash-object', '-w', '--stdin', data=encrypted).stdout.strip()
             tree = self.git('mktree', data=b'100644 blob ' + blob + b'\tledger.enc\n').stdout.strip().decode()
-            parents = ['-p', parent] if parent else []
-            head = self.git('commit-tree', tree, *parents, '-m', 'Update posting state').stdout.strip().decode()
-            push = self.git('push', 'origin', head + ':' + self.ref, check=False)
+            head = self.git('commit-tree', tree, '-m', 'Update posting state').stdout.strip().decode()
+            push = self.git('push', f'--force-with-lease={self.ref}:{parent or ''}',
+                            'origin', head + ':' + self.ref, check=False)
             if push.returncode == 0:
                 return True
             # Only a confirmed competing update is retryable. Ambiguous writes
@@ -71,18 +101,19 @@ class Ledger:
         raise RuntimeError('state_contention')
 
     def slot(self, day):
-        return self.load()[1]['slots'].get(str(day))
+        slot = self.load()[1]['slot']
+        return slot if slot and slot['day'] == str(day) else None
 
     def claim(self, day, owner):
         def reserve(state):
             now = datetime.now(TZ)
-            slot = state['slots'].get(str(day))
+            slot = state['slot']
             if slot and (slot['state'] != 'working' or slot['attempts'] >= 3
                          or datetime.fromisoformat(slot['lease_until']) > now):
                 return False
-            if any(datetime.fromisoformat(p['time']).astimezone(TZ).date() == day for p in state['posts']):
+            if day != now.date():
                 return False
-            state['slots'][str(day)] = dict(day=str(day), owner=owner, state='working',
+            state['slot'] = dict(day=str(day), owner=owner, state='working',
                                             attempts=slot['attempts'] + 1 if slot else 1,
                                             lease_until=(now + timedelta(minutes=12)).isoformat())
             return True
@@ -90,29 +121,30 @@ class Ledger:
 
     def intent(self, day, owner, draft):
         def prepare(state):
-            slot = state['slots'].get(str(day))
+            slot = state['slot']
             now = datetime.now(TZ)
             if not slot or slot['owner'] != owner or slot['state'] != 'working':
                 return False
             if now.date() != day or datetime.fromisoformat(slot['lease_until']) <= now:
                 return False
-            slot.update(state='sending', draft=draft, intent_at=now.isoformat())
+            slot.update(state='sending', topic=draft['topic'], digest=fingerprint(draft['text']),
+                        intent_at=now.isoformat())
             return True
         return self.update(prepare)
 
     def finish(self, day, tweet_id):
         def acknowledge(state):
-            slot = state['slots'][str(day)]
-            if slot['state'] != 'sending':
+            slot = state['slot']
+            if not slot or slot['day'] != str(day) or slot['state'] != 'sending':
                 return False
-            state['posts'].append(dict(slot.pop('draft'), id=str(tweet_id), time=slot['intent_at'], metrics=None))
-            slot.update(state='published', tweet_id=str(tweet_id))
+            state['topics'] = (state['topics'] + [slot['topic']])[-10:]
+            state['slot'] = dict(day=str(day), state='published', tweet_id=str(tweet_id))
             return True
         self.update(acknowledge)
 
     def failure(self, day, owner, kind, from_state):
         def release(state):
-            slot = state['slots'].get(str(day))
+            slot = state['slot']
             if not slot or slot['owner'] != owner or slot['state'] != from_state:
                 return False
             slot.update(state='skipped' if slot['attempts'] >= 3 else 'working', error=kind,
@@ -120,29 +152,9 @@ class Ledger:
             return True
         self.update(release)
 
-    def event(self, day, kind, detail):
-        def append(state):
-            state['events'].append(dict(day=str(day), kind=kind, detail=detail))
-            state['events'] = state['events'][-100:]
-            return True
-        self.update(append)
-
     def memory(self):
-        return sorted(self.load()[1]['posts'], key=lambda p: datetime.fromisoformat(p['time']), reverse=True)
-
-    def candidates(self):
-        return [e['detail'] for e in reversed(self.load()[1]['events']) if e['kind'] == 'evaluation'][:24]
+        return [dict(topic=topic) for topic in reversed(self.load()[1]['topics'])]
 
     def pending(self):
-        cutoff = datetime.now(TZ) - timedelta(days=7)
-        return [s for s in self.load()[1]['slots'].values() if s['state'] == 'sending'
-                and datetime.fromisoformat(s['intent_at']) > cutoff]
-
-    def save_metrics(self, tweet_id, metrics):
-        def save(state):
-            for post in state['posts']:
-                if post['id'] == tweet_id and post.get('metrics') is None:
-                    post['metrics'] = metrics
-                    return True
-            return False
-        self.update(save)
+        slot = self.load()[1]['slot']
+        return [slot] if slot and slot['state'] == 'sending' else []

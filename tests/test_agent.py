@@ -7,11 +7,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime,timedelta
 from unittest.mock import Mock,patch
 
-from agent import daily,editorial,learning,research
+from agent import daily,editorial,research
 from agent.publisher import Rejected
-from agent.store import Ledger
+from agent.store import Ledger, TZ, compact, fingerprint
 
-NOW=datetime(2026,11,24,17,tzinfo=learning.TZ)
+NOW=datetime(2026,11,24,17,tzinfo=TZ)
 DRAFT=dict(text='A city can tell the time by its loudspeakers.',topic='public space',
            argument='sound as a clock',format='observation',kind='evergreen')
 
@@ -105,19 +105,16 @@ class Editorial(unittest.TestCase):
                     distinct=False,policy_ok=True)
         def attempt():
             model.ask.side_effect=[{'ideas':[idea]},{'texts':[DRAFT['text']]},{'reviews':[review]}]
-            return editorial.choose(model,[],[],[],[],{},Mock())
+            return editorial.choose(model,[],[],[])
         with self.assertRaises(ValueError):
             attempt()
         review['distinct']=True
         self.assertEqual(attempt()['quality'],15)
         self.assertFalse(editorial.acceptable_text(DRAFT['text'],[DRAFT]))
 
-    def test_learning_and_schedule(self):
-        row={**DRAFT,'time':NOW.isoformat(),'metrics':{'impression_count':100,'like_count':3,'reply_count':0,'retweet_count':1}}
-        self.assertFalse(learning.preferences([row]*5))
-        self.assertEqual(learning.preferences([row]*6)['format:observation'],.04)
-        t=daily.target(NOW.date(),{},'seed')
-        self.assertEqual(t,daily.target(NOW.date(),{},'seed'))
+    def test_schedule(self):
+        t=daily.target(NOW.date(),'seed')
+        self.assertEqual(t,daily.target(NOW.date(),'seed'))
         self.assertTrue(12<=t.hour<16)
         self.assertEqual(t.utcoffset(),timedelta(hours=5,minutes=30))
 
@@ -138,7 +135,7 @@ class GitLedger(unittest.TestCase):
 
     def test_concurrent_lease_and_recovery(self):
         store = self.store
-        day=datetime.now(learning.TZ).date()
+        day=datetime.now(TZ).date()
         owners=[str(i) for i in range(8)]
         with ThreadPoolExecutor(8) as pool:
             wins=list(pool.map(lambda o:store.claim(day,o),owners))
@@ -147,16 +144,19 @@ class GitLedger(unittest.TestCase):
         self.assertFalse(store.intent(day,'other',DRAFT))
         self.assertTrue(store.intent(day,owner,DRAFT))
         restart=Ledger('42', self.repo)
-        self.assertEqual(restart.pending()[0]['draft'],DRAFT)
+        self.assertEqual(restart.pending()[0]['digest'], fingerprint(DRAFT['text']))
+        self.assertNotIn('draft', restart.pending()[0])
         restart.finish(day,'1234')
-        restart.save_metrics('1234', {'like_count': 7})
-        self.assertEqual(restart.memory()[0]['metrics'], {'like_count': 7})
+        self.assertEqual(restart.memory()[0], dict(topic=DRAFT['topic']))
+        self.assertLessEqual(len(restart.memory()), 10)
+        count = restart.git('rev-list', '--count', restart.ref.replace('refs/heads/', 'refs/remotes/origin/')).stdout
+        self.assertEqual(count.strip(), b'1')
         self.assertFalse(restart.claim(day,'new'))
         self.assertEqual(restart.slot(day)['tweet_id'],'1234')
 
 
     def test_wrong_key_fails_closed(self):
-        day = datetime.now(learning.TZ).date()
+        day = datetime.now(TZ).date()
         self.assertTrue(self.store.claim(day, 'owner'))
         self.assertTrue(self.store.intent(day, 'owner', DRAFT))
         raw = self.store.git('show', self.store.ref.replace('refs/heads/', 'refs/remotes/origin/') + ':ledger.enc').stdout
@@ -173,7 +173,7 @@ class Transport(unittest.TestCase):
         pub.account='123'
         pub.read=Mock(side_effect=[{'data':[{'text':'different','id':'1'}],'meta':{'next_token':'next'}},
                                   {'data':[{'text':DRAFT['text'],'id':'2'}]}])
-        self.assertEqual(pub.reconcile({'intent_at':NOW.isoformat(),'draft':DRAFT}),'2')
+        self.assertEqual(pub.reconcile({'intent_at':NOW.isoformat(),'digest':fingerprint(DRAFT['text'])}),'2')
         self.assertEqual(pub.read.call_args.args[1]['pagination_token'],'next')
 
     def test_mismatched_identity(self):
@@ -184,10 +184,13 @@ class Transport(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'identity_mismatch'):
             pub.verify()
 
-    def test_missing_metrics_stay_unknown(self):
-        store=Mock()
-        store.memory.return_value=[{**DRAFT,'time':(NOW-timedelta(days=3)).isoformat(),'id':'123'}]
-        pub=Mock()
-        pub.read.return_value={'data':[{'id':'123','public_metrics':{'like_count':0}}]}
-        learning.collect(store,pub,NOW)
-        store.save_metrics.assert_called_once_with('123', {'like_count':0})
+    def test_legacy_migration_and_daily_rollover(self):
+        day = str(NOW.date())
+        posts = [dict(topic=str(i), id=str(i), time=NOW.isoformat()) for i in range(15)]
+        slot = dict(day=day, state='sending', draft=DRAFT, intent_at=NOW.isoformat())
+        old = dict(slots={day: slot}, posts=posts, events=['private review'])
+        result = compact(old, day)
+        self.assertEqual(result['topics'], [str(i) for i in range(5, 15)])
+        self.assertEqual(result['slot']['digest'], fingerprint(DRAFT['text']))
+        self.assertNotIn('draft', result['slot'])
+        self.assertEqual(compact(result, '2026-11-25'), dict(slot=None, topics=result['topics']))

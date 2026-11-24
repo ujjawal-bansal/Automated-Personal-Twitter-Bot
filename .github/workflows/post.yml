@@ -6,8 +6,8 @@ on:
     inputs:
       mode:
         type: choice
-        description: Daily run, private shadow evaluation, or metrics collection
-        options: [dry-run, auto, learn-now]
+        description: Daily run or private shadow evaluation
+        options: [dry-run, auto]
         default: dry-run
 permissions:
   contents: write

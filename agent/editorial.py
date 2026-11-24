@@ -132,10 +132,9 @@ def acceptable_text(text,memory):
     return not any(SequenceMatcher(None,normal,' '.join(p.get('text','').casefold().split())).ratio()>.77 for p in memory)
 
 
-def choose(model,sources,trends,memory,previous,strategy,record):
+def choose(model,sources,trends,memory):
     context=recent_context(memory)
-    args=dict(articles=sources if trends else [],excluded_trends=trends,history=context,
-              previous_evaluations=previous[:5],weak_preferences=strategy)
+    args=dict(articles=sources if trends else [],excluded_trends=trends,history=context)
     plan_instruction = """Propose 4 distinct ideas including 2 evergreen. When excluded_trends is empty,
 make all four evergreen with source_ids: []. Centre each on one specific everyday detail or choice
 within the profile. For each give topic, argument,
@@ -160,7 +159,6 @@ no new personal opinions on a public figure. For evergreen use an observation or
             continue
         texts=list(dict.fromkeys(t.strip() for t in texts[:3] if acceptable_text(t,memory)))
         if not texts:
-            record('evaluation',dict(topic=idea['topic'],reason='local_checks',generated=generated))
             continue
         review=model.ask("""Independently evaluate each draft against the fixed author profile, source
 excerpts, recent arguments and excluded trends (including paraphrases). For each factual claim verify
@@ -170,9 +168,7 @@ experiences, ungrounded viewpoints, quotation, abuse, or recycled argument even 
 Return {reviews:[{index:0,voice:0..5,insight:0..5,originality:0..5,verified:true/false,
 personal_supported:true/false,distinct:true/false,policy_ok:true/false,reason:string}]}.
 An empty trend list allows only timeless non-news observations.""",
-            dict(idea=idea,texts=texts,history=context,older_arguments=[
-                p.get('argument',p.get('topic')) for p in memory[40:400]],trends=trends), Review)
-        record('evaluation',dict(idea=idea,texts=texts,review=review))
+            dict(idea=idea,texts=texts,history=context,trends=trends), Review)
         passing=[]
         for r in review.get('reviews',[]):
             if not isinstance(r,dict) or type(r.get('index'))!=int or not 0<=r['index']<len(texts):
