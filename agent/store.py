@@ -1,113 +1,194 @@
-"""PostgreSQL ledger. SQL is static; values enter psql as quoted JSON data."""
+"""Keep the posting ledger encrypted on a dedicated Git branch."""
+import base64
+import hashlib
 import json
 import os
 import subprocess
+import zlib
+from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import parse_qsl, unquote, urlsplit
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS agent_slots (
- account text NOT NULL, day date NOT NULL, state text NOT NULL,
- owner text, lease_until timestamptz, attempts int NOT NULL DEFAULT 0,
- draft jsonb, intent_at timestamptz, tweet_id text, error text,
- PRIMARY KEY(account, day)
-);
-CREATE TABLE IF NOT EXISTS agent_memory (
- account text NOT NULL, tweet_id text NOT NULL, published timestamptz NOT NULL,
- item jsonb NOT NULL, metrics jsonb, PRIMARY KEY(account,tweet_id)
-);
-CREATE TABLE IF NOT EXISTS agent_events (
- account text NOT NULL, day date NOT NULL, at timestamptz NOT NULL DEFAULT now(),
- kind text NOT NULL, detail jsonb NOT NULL
-);
-"""
+from cryptography.fernet import Fernet
+
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo('Asia/Kolkata')
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def fingerprint(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def compact(state, day):
+    """Read the previous ledger format without dropping today's send intent."""
+    if 'topics' in state:
+        topics = state['topics']
+        slot = state['slot']
+    else:
+        posts = sorted(state['posts'], key=lambda p: datetime.fromisoformat(p['time']))
+        topics = [p['topic'] for p in posts if p.get('topic')]
+        slot = state['slots'].get(day)
+        if slot is None and posts:
+            last = posts[-1]
+            if datetime.fromisoformat(last['time']).astimezone(TZ).date().isoformat() == day:
+                slot = dict(day=day, state='published', tweet_id=last['id'])
+    if slot and slot['day'] != day:
+        slot = None
+    if slot and 'draft' in slot:
+        slot = slot.copy()
+        draft = slot.pop('draft')
+        if slot['state'] == 'sending':
+            slot.update(topic=draft['topic'], digest=fingerprint(draft['text']))
+    result = dict(slot=slot, topics=topics[-10:])
+    if state.get('feedback'):
+        result['feedback'] = state['feedback']
+    return result
 
 
 class Ledger:
-    def __init__(self, url, account):
-        self.url = url
-        parsed = urlsplit(url)
-        if parsed.scheme not in ('postgresql', 'postgres') or not parsed.path.strip('/'):
-            raise ValueError('invalid_database_url')
-        self.connection = {'PGDATABASE': unquote(parsed.path.lstrip('/'))}
-        for key, value in [('PGHOST', parsed.hostname), ('PGPORT', parsed.port),
-                           ('PGUSER', parsed.username), ('PGPASSWORD', parsed.password)]:
-            if value is not None:
-                self.connection[key] = unquote(str(value))
-        options = {'sslmode':'PGSSLMODE', 'sslrootcert':'PGSSLROOTCERT',
-                   'channel_binding':'PGCHANNELBINDING', 'host':'PGHOST', 'port':'PGPORT',
-                   'sslcert':'PGSSLCERT', 'sslkey':'PGSSLKEY',
-                   'application_name':'PGAPPNAME'}
-        for key, value in parse_qsl(parsed.query):
-            if key not in options:
-                raise ValueError('unsupported_database_option')
-            self.connection[options[key]] = value
-        self.account = str(account)
+    def __init__(self, account, repo=ROOT):
+        if not str(account).isdecimal():
+            raise ValueError('invalid_account')
+        self.repo = repo
+        self.ref = 'refs/heads/agent-state-' + str(account)
+        secret = os.getenv('AGENT_STATE_KEY') or os.environ['X_API_SECRET']
+        if not secret:
+            raise ValueError('missing_state_key')
+        key = hashlib.sha256(('x-agent-state-v1/' + str(account) + '/' + secret).encode()).digest()
+        self.cipher = Fernet(base64.urlsafe_b64encode(key))
 
-    def sql(self, statement, **data):
-        env = {k: os.environ[k] for k in ('PATH','HOME','LANG') if k in os.environ}
-        env.update(self.connection)
-        env.update(PGCONNECT_TIMEOUT='8',
-                   PGOPTIONS='-c statement_timeout=10000 -c lock_timeout=5000',
-                   AGENT_DATA=json.dumps(dict(data, account=self.account)))
-        # getenv keeps credentials and private drafts out of the process arguments.
-        header = "\\getenv input AGENT_DATA\n"
-        query = statement.replace('$data', "(:'input'::jsonb)").replace('$account', "(:'input'::jsonb->>'account')")
-        proc = subprocess.run(['psql','-XqAt','-v','ON_ERROR_STOP=1'], input=header+query,
-                              env=env, capture_output=True, text=True, timeout=20)
-        if proc.returncode:
-            raise RuntimeError('ledger_unavailable')
-        return [json.loads(line) for line in proc.stdout.splitlines() if line]
+    def git(self, *args, data=None, check=True):
+        cmd = ['git', '-c', 'user.name=X agent', '-c', 'user.email=agent@localhost', *args]
+        result = subprocess.run(cmd, cwd=self.repo, input=data, capture_output=True,
+                                env={**os.environ, 'GIT_TERMINAL_PROMPT': '0'}, timeout=45)
+        if check and result.returncode:
+            raise RuntimeError('state_git_unavailable')
+        return result
 
-    def initialise(self):
-        self.sql(SCHEMA)
-        posts = json.loads((Path(__file__).resolve().parents[1]/'data/history.json').read_text())['posts']
-        self.sql("""INSERT INTO agent_memory SELECT $account,p->>'id',(p->>'time')::timestamptz,p-'metrics',p->'metrics'
-          FROM jsonb_array_elements($data->'posts') p ON CONFLICT DO NOTHING;""", posts=posts)
+    def load(self):
+        day = datetime.now(TZ).date().isoformat()
+        ref = self.git('ls-remote', '--exit-code', 'origin', self.ref, check=False)
+        if ref.returncode == 2:
+            posts = json.loads((ROOT / 'data/history.json').read_text())['posts']
+            return None, compact(dict(posts=posts, slots={}), day)
+        if ref.returncode:
+            raise RuntimeError('state_remote_unavailable')
+        head = ref.stdout.split()[0].decode()
+        self.git('fetch', '--quiet', '--no-tags', 'origin', head)
+        encrypted = self.git('show', head + ':ledger.enc').stdout
+        return head, compact(json.loads(zlib.decompress(self.cipher.decrypt(encrypted))), day)
+
+    def update(self, change):
+        # A lease compares the exact previously observed ref. Competing writers must
+        # reload and re-evaluate their transition before they can win.
+        for _ in range(4):
+            parent, state = self.load()
+            if not change(state):
+                return False
+            encoded = json.dumps(state, ensure_ascii=False, separators=(',', ':')).encode()
+            encrypted = self.cipher.encrypt(zlib.compress(encoded))
+            blob = self.git('hash-object', '-w', '--stdin', data=encrypted).stdout.strip()
+            tree = self.git('mktree', data=b'100644 blob ' + blob + b'\tledger.enc\n').stdout.strip().decode()
+            head = self.git('commit-tree', tree, '-m', 'Update posting state').stdout.strip().decode()
+            push = self.git('push', f'--force-with-lease={self.ref}:{parent or ''}',
+                            'origin', head + ':' + self.ref, check=False)
+            if push.returncode == 0:
+                return True
+            # Only a confirmed competing update is retryable. Ambiguous writes
+            # fail closed; an unacknowledged intent cannot cause a second send.
+            remote = self.git('ls-remote', 'origin', self.ref).stdout.split()
+            if not remote or remote[0].decode() in (parent, head):
+                raise RuntimeError('state_write_unconfirmed')
+        raise RuntimeError('state_contention')
 
     def slot(self, day):
-        return next(iter(self.sql("SELECT to_jsonb(s) FROM agent_slots s WHERE account=$account AND day=($data->>'day')::date",day=str(day))),None)
+        slot = self.load()[1]['slot']
+        return slot if slot and slot['day'] == str(day) else None
 
     def claim(self, day, owner):
-        return bool(self.sql("""INSERT INTO agent_slots AS s(account,day,state,owner,lease_until,attempts)
-          SELECT $account,($data->>'day')::date,'working',$data->>'owner',now()+interval '12 minutes',1
-          WHERE NOT EXISTS (SELECT 1 FROM agent_memory WHERE account=$account AND
-          (published AT TIME ZONE 'Asia/Kolkata')::date=($data->>'day')::date)
-          ON CONFLICT (account,day) DO UPDATE SET owner=excluded.owner,lease_until=excluded.lease_until,
-          attempts=s.attempts+1 WHERE s.state='working' AND s.lease_until<=now() AND s.attempts<3
-          RETURNING to_json(true)""", day=str(day),owner=owner))
+        def reserve(state):
+            now = datetime.now(TZ)
+            slot = state['slot']
+            if slot and (slot['state'] != 'working' or slot['attempts'] >= 3
+                         or datetime.fromisoformat(slot['lease_until']) > now):
+                return False
+            if day != now.date():
+                return False
+            state['slot'] = dict(day=str(day), owner=owner, state='working',
+                                            attempts=slot['attempts'] + 1 if slot else 1,
+                                            lease_until=(now + timedelta(minutes=12)).isoformat())
+            return True
+        return self.update(reserve)
 
     def intent(self, day, owner, draft):
-        return bool(self.sql("""UPDATE agent_slots SET state='sending',draft=$data->'draft',intent_at=clock_timestamp()
-          WHERE account=$account AND day=($data->>'day')::date AND owner=$data->>'owner' AND state='working'
-          AND lease_until>now() AND day=(now() AT TIME ZONE 'Asia/Kolkata')::date RETURNING to_json(true)""",
-          day=str(day),owner=owner,draft=draft))
+        def prepare(state):
+            slot = state['slot']
+            now = datetime.now(TZ)
+            if not slot or slot['owner'] != owner or slot['state'] != 'working':
+                return False
+            if now.date() != day or datetime.fromisoformat(slot['lease_until']) <= now:
+                return False
+            slot.update(state='sending', topic=draft['topic'], digest=fingerprint(draft['text']),
+                        intent_at=now.isoformat())
+            return True
+        return self.update(prepare)
 
     def finish(self, day, tweet_id):
-        self.sql("""WITH saved AS (UPDATE agent_slots SET state='published',tweet_id=$data->>'id'
-          WHERE account=$account AND day=($data->>'day')::date AND state='sending'
-          RETURNING account,tweet_id,intent_at,draft)
-          INSERT INTO agent_memory SELECT account,tweet_id,intent_at,draft,NULL FROM saved
-          ON CONFLICT DO NOTHING""", day=str(day),id=str(tweet_id))
+        def acknowledge(state):
+            slot = state['slot']
+            if not slot or slot['day'] != str(day) or slot['state'] != 'sending':
+                return False
+            state['topics'] = (state['topics'] + [slot['topic']])[-10:]
+            state['slot'] = dict(day=str(day), state='published', tweet_id=str(tweet_id))
+            return True
+        self.update(acknowledge)
 
-    def failure(self,day,owner,kind,from_state):
-        self.sql("""UPDATE agent_slots SET state=CASE WHEN attempts>=3 THEN 'skipped' ELSE 'working' END,
-          error=$data->>'kind',lease_until=now()+interval '30 minutes'
-          WHERE account=$account AND day=($data->>'day')::date AND owner=$data->>'owner'
-          AND state=$data->>'state'""",day=str(day),owner=owner,kind=kind,state=from_state)
-
-    def event(self,day,kind,detail):
-        self.sql("INSERT INTO agent_events(account,day,kind,detail) VALUES ($account,($data->>'day')::date,$data->>'kind',$data->'detail')",
-                 day=str(day),kind=kind,detail=detail)
+    def failure(self, day, owner, kind, from_state):
+        def release(state):
+            slot = state['slot']
+            if not slot or slot['owner'] != owner or slot['state'] != from_state:
+                return False
+            slot.update(state='skipped' if slot['attempts'] >= 3 else 'working', error=kind,
+                        lease_until=(datetime.now(TZ) + timedelta(minutes=30)).isoformat())
+            return True
+        self.update(release)
 
     def memory(self):
-        return self.sql("""SELECT item || jsonb_build_object('metrics',metrics,'time',published,'id',tweet_id)
-          FROM agent_memory WHERE account=$account ORDER BY published DESC""")
-
-    def candidates(self):
-        return self.sql("""SELECT detail FROM agent_events WHERE account=$account AND kind='evaluation'
-                           ORDER BY at DESC LIMIT 24""")
+        return [dict(topic=topic) for topic in reversed(self.load()[1]['topics'])]
 
     def pending(self):
-        return self.sql("""SELECT to_jsonb(s) FROM agent_slots s WHERE account=$account AND state='sending'
-                           AND intent_at>now()-interval '7 days' ORDER BY day DESC""")
+        slot = self.load()[1]['slot']
+        return [slot] if slot and slot['state'] == 'sending' else []
+
+    def feedback(self):
+        return self.load()[1].get('feedback', [])
+
+    def set_feedback(self, subject, decision, note):
+        subject, note = subject.strip(), note.strip()
+        if not 0 < len(subject) <= 80 or not 0 < len(note) <= 400:
+            raise ValueError('Use a subject of 1–80 characters and a note of 1–400 characters.')
+        if decision not in ('approved', 'rejected', 'edited', 'updated'):
+            raise ValueError('invalid_feedback_decision')
+
+        def save(state):
+            notes = [item for item in state.get('feedback', [])
+                     if item['subject'].casefold() != subject.casefold()]
+            if len(notes) >= 24:
+                raise ValueError('There are 24 active notes. Replace or remove one first.')
+            notes.append(dict(subject=subject, decision=decision, note=note,
+                              date=datetime.now(TZ).date().isoformat()))
+            state['feedback'] = notes
+            return True
+        return self.update(save)
+
+    def forget_feedback(self, subject):
+        def forget(state):
+            current = state.get('feedback', [])
+            kept = [item for item in current if item['subject'].casefold() != subject.strip().casefold()]
+            if len(kept) == len(current):
+                return False
+            state['feedback'] = kept
+            return True
+        return self.update(forget)

@@ -6,9 +6,8 @@ import uuid
 from datetime import datetime,time,timedelta
 
 from agent.editorial import Model,choose
-from agent.learning import TZ,collect,preferences
 from agent.research import discover
-from agent.store import Ledger
+from agent.store import Ledger, TZ, compact
 
 
 def clock():
@@ -19,43 +18,40 @@ def log(event,**fields):
     print(json.dumps(dict(event=event,**fields)),flush=True)
 
 
-def target(day,strategy,seed):
+def target(day,seed):
     start=int(os.getenv('POST_START_HOUR','12'))
     end=int(os.getenv('POST_END_HOUR','16'))
     if not 0<=start<end<=23:
         raise ValueError('invalid_window')
     bits=int.from_bytes(hashlib.sha256(f'{seed}:{day}'.encode()).digest()[:8],'big')
     hour=start+bits%(end-start)
-    eligible={int(k[5:]):v for k,v in strategy.items() if k.startswith('hour:') and start<=int(k[5:])<end}
-    if len(eligible)>=2 and bits%4:
-        hour=max(eligible,key=eligible.get)
     return datetime.combine(day,time(hour,(bits//97)%60),tzinfo=TZ)
 
 
-def trend_exclusions():
+def trend_signals():
     import requests
     from bot import x_bearer_token
     headers={'Authorization':'Bearer '+x_bearer_token()}
     names=[]
     for place in (23424848,1):
-        r=requests.get(f'https://api.x.com/2/trends/by/woeid/{place}',headers=headers,
-                       params={'max_trends':50},timeout=(4,10))
-        r.raise_for_status()
-        batch=[t['trend_name'] for t in r.json().get('data',[]) if t.get('trend_name')]
-        if not batch:
-            return []
+        try:
+            r=requests.get(f'https://api.x.com/2/trends/by/woeid/{place}',headers=headers,
+                           params={'max_trends':50},timeout=(4,10))
+            r.raise_for_status()
+            batch=[t['trend_name'] for t in r.json().get('data',[]) if t.get('trend_name')]
+        except (requests.RequestException, ValueError):
+            continue
         names.extend(batch)
     return list(dict.fromkeys(names))
 
 
 def draft(store,day,memory,shadow=False):
     try:
-        trends=trend_exclusions()
+        trends=trend_signals()
     except Exception:
         trends=[]
-    record=(lambda kind,detail:None) if shadow else (lambda kind,detail:store.event(day,kind,detail))
-    return choose(Model(),discover(clock()),trends,memory,
-                  store.candidates() if store else [],preferences(memory),record)
+    feedback = store.feedback() if store else []
+    return choose(Model(),discover(clock()),trends,memory,feedback)
 
 
 def run(store,publisher,generate=draft,now=clock,force=False):
@@ -71,7 +67,7 @@ def run(store,publisher,generate=draft,now=clock,force=False):
     if slot and slot['state']!='working':
         return slot['state']
     memory=store.memory()
-    if not force and instant<target(day,preferences(memory),os.getenv('SCHEDULE_SEED','daily')):
+    if not force and instant<target(day,os.getenv('SCHEDULE_SEED','daily')):
         return 'early'
     if instant.hour==23 and instant.minute>=55:
         return 'day_closing'
@@ -90,16 +86,11 @@ def run(store,publisher,generate=draft,now=clock,force=False):
     except Exception as exc:
         kind=str(exc) if isinstance(exc,ValueError) and str(exc) in ('quality_threshold','account_identity_mismatch','day_closed') else type(exc).__name__
         store.failure(day,owner,kind,'working')
-        store.event(day,'failed_before_send',{'cause':kind})
         raise
     try:
         ident=publisher.send(selected['text'],media_id)
     except Rejected as exc:
         store.failure(day,owner,str(exc),'sending')
-        store.event(day,'rejected',{'cause':str(exc)})
-        raise
-    except Exception:
-        store.event(day,'uncertain',{})
         raise
     store.finish(day,ident)
     return 'published'
@@ -107,16 +98,35 @@ def run(store,publisher,generate=draft,now=clock,force=False):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--dry-run',action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--dry-run',action='store_true')
+    mode.add_argument('--review', action='store_true')
+    mode.add_argument('--preferences', action='store_true')
     parser.add_argument('--trending',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--force',action='store_true',help='bypass target time, retaining the daily limit')
     args=parser.parse_args()
     account=os.getenv('X_ACCOUNT_ID','1703345238167924736')
+    if args.review or args.preferences:
+        from agent.feedback import preferences, review
+        if os.environ.get('GITHUB_ACTIONS'):
+            raise ValueError('interactive_feedback_requires_local_terminal')
+        store = Ledger(account)
+        if args.preferences:
+            preferences(store)
+        else:
+            review(store, draft(store, clock().date(), store.memory(), True))
+        return
     if args.dry_run or os.getenv('DRY_RUN','').lower()=='true':
-        from bot import HISTORY_FILE,load_json
-        memory=list(reversed(load_json(HISTORY_FILE,{'posts':[]})['posts']))
-        # Only the local interactive preview may display the selected post.
-        post=draft(None,clock().date(),memory,True)
+        if os.getenv('X_API_SECRET') or os.getenv('AGENT_STATE_KEY'):
+            store = Ledger(account)
+            memory = store.memory()
+        else:
+            from bot import HISTORY_FILE, load_json
+            posts = load_json(HISTORY_FILE, {'posts': []})['posts']
+            topics = compact(dict(posts=posts, slots={}), str(clock().date()))['topics']
+            store = None
+            memory = [dict(topic=t) for t in reversed(topics)]
+        post = draft(store, clock().date(), memory, True)
         log('shadow_passed',quality=post['quality'])
         if not os.environ.get('GITHUB_ACTIONS'):
             print(post['text'])
@@ -125,17 +135,9 @@ def main():
         log('disabled')
         return
     from agent.publisher import Publisher
-    store=Ledger(os.environ['DATABASE_URL'],account)
-    store.initialise()
+    store=Ledger(account)
     pub=Publisher(account)
     if os.getenv('LEARN_ONLY','').lower()=='true':
-        pub.verify()
-        collect(store,pub,clock())
+        log('metrics_collection_disabled')
         return
-    result=run(store,pub,force=args.force)
-    log(result)
-    if result=='published':
-        try:
-            collect(store,pub,clock())
-        except Exception as exc:
-            log('metrics_deferred',cause=type(exc).__name__)
+    log(run(store,pub,force=args.force))

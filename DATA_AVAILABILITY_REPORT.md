@@ -1,12 +1,14 @@
 # Data Availability Report: @AtheXTheist
 
-Phase 1, step 1. Checked on 23 Nov 2026 (IST), using only the account's own X API OAuth 1.0a keys from `.env`, read-only.
+## Current evidence · 25 November 2026
 
-## Status: BLOCKED for tweet history
+The downloaded X archive supplied 2,825 retained records dated 17 September 2023 to 22 November 2026. The four Phase 1 reports are in the workspace’s `Phase-1` directory. The voice profile and interest map incorporate a second reading on 25 November. The counts are 617 standalones, 1,784 replies, 110 posts containing a status link and 314 reposts. Five separately preserved deletions were excluded from voice examples and performance rankings. The 38 entries in the historical bot log had zero ID or exact normalised-text matches in the archive. They contributed no voice evidence.
 
-The X API reports **`402 Payment Required: credits depleted`** for every read of tweet content. The profile endpoint still works, but no tweets (original, replies, quotes, reposts) or per-post metrics can be pulled until the app's X API credits are topped up, or until a different authorized data source (the X data archive) is provided.
+The archive supplies likes and repost counts. Views, bookmarks, received replies and most conversation parents remain unavailable. The table below records a historical API check and measures that access route only.
 
-Because of this, the voice, interest and performance analyses **have not been written yet**. Writing them from the data below would mean inventing a personality, which the brief forbids.
+## Historical API snapshot · 23 November 2026
+
+A read-only check using the project’s OAuth credentials retrieved the account profile. Reads of tweet content returned **402 Payment Required** because the app’s credits were depleted. The offline archive supplied the later analysis.
 
 ## What was attempted
 
@@ -19,7 +21,7 @@ Because of this, the voice, interest and performance analyses **have not been wr
 
 Rate limits were not the issue (900 timeline calls remaining in the window). The block is billing, not throttling. No scraping, browser access or cookies were used.
 
-## What IS available
+## Sources available during the API check
 
 ### 1. Profile (live, from the API)
 
@@ -38,7 +40,7 @@ Rate limits were not the issue (900 timeline calls remaining in the window). The
 | Verified | No |
 | Most recent post ID | 2124604972965015831 |
 
-Facts only. The bio is the one piece of the person's own writing reachable right now. It mixes Hindi (Devanagari) and English and self-describes as "Rationalist", but one bio line is not enough to build a voice profile from.
+Facts only. The bio is the one piece of the account holder’s writing reached by that check. It mixes Hindi (Devanagari) and English and self-describes as "Rationalist", but one bio line is not enough to build a voice profile from.
 
 ### 2. Local bot history (`data/history.json`), NOT the user's own voice
 
@@ -47,7 +49,7 @@ Facts only. The bio is the one piece of the person's own writing reachable right
 - Metrics (impressions, likes, replies, reposts, quotes, bookmarks) exist for the posts that `learn.py` measured before credits ran out. `data/report.md` (17 Nov) shows averages of roughly 20 to 84 views and 0.2 to 4.2 likes per pillar.
 - Use: these can describe how the **bot's** current content performs. They must not be used to describe Vashu's personality or writing style, and they would contaminate a voice profile if mixed in.
 
-## Category-by-category availability
+## Coverage through the API on 23 November
 
 | Category | Accessible? | Records | Date range | Notes |
 |---|---|---|---|---|
@@ -62,16 +64,16 @@ Facts only. The bio is the one piece of the person's own writing reachable right
 | Likes given (what he likes) | **No** | 0 of 27,449 | n/a | Would also need credits; likes are signals, not opinions |
 | Profile | **Yes** | 1 | live | See above |
 
-## Known limits even once access is restored
+## Limits recorded at the time
 
 1. **Timeline cap.** `GET /users/:id/tweets` returns at most the latest 3,200 posts. At 2,828 lifetime posts, everything should fit, minus deletions.
-2. **Bot contamination.** From 8 Oct 2026 the account mixes bot posts with Vashu's own. The 38 bot IDs in `history.json` will be filtered out by ID before any voice analysis.
+2. **Bot contamination.** From 8 Oct 2026 the account mixes bot posts with Vashu's own. The later analysis cross-checked all 38 bot IDs and their text.
 3. **Impressions/views** are returned in `public_metrics` for the owner's posts; private metrics (profile clicks, URL clicks) are only for posts under 30 days old.
 4. **Replies need context.** Parent posts can be fetched as expansions, but deleted or protected parents will show as missing.
 5. **Deleted posts** are not returned by the API and cannot be recovered.
 6. **Cost.** Reading ~2,800 posts plus referenced parents uses a meaningful number of pay-per-use credits.
 
-## Ways to unblock (both authorized)
+## Options documented on 23 November
 
 **Option A: X data archive (recommended).** Free. In X: Settings → Your account → Download an archive of your data. X usually sends it within about 24 hours. It contains every post (originals, replies, quotes, reposts, note tweets), likes, and like/repost counts per post. It does not include views/impressions. Drop the zip (or just `data/tweets.js`) somewhere on the Mac and the analysis can run fully offline.
 
@@ -81,6 +83,6 @@ Best result: A for full history and voice, plus a small B top-up later if impres
 
 ## Confidence
 
-- That tweet history is currently inaccessible: **High** (four failed calls, explicit 402 credit error).
+- That the API tweet reads failed on 23 November: **High** (four failed calls, explicit 402 credit error).
 - Profile facts: **High** (direct API response).
-- Any statement about Vashu's voice, interests or performance: **not possible yet**.
+- The API snapshot alone supplied insufficient evidence for a voice profile. The later archive findings are summarised at the top of this report.

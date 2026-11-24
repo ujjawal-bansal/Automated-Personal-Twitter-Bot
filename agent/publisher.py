@@ -2,6 +2,7 @@ import os
 from datetime import datetime,timedelta
 import requests
 from requests_oauthlib import OAuth1
+from agent.store import fingerprint
 
 
 class Rejected(Exception):
@@ -45,7 +46,7 @@ class Publisher:
         for _ in range(3):
             page=self.read(f'users/{self.account}/tweets',params)
             for post in page.get('data',[]):
-                if post.get('text')==slot['draft']['text']:
+                if isinstance(post.get('text'), str) and fingerprint(post['text']) == slot['digest']:
                     return post['id']
             token=page.get('meta',{}).get('next_token')
             if not token:
