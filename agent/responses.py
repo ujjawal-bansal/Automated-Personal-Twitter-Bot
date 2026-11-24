@@ -14,6 +14,7 @@ class Idea(BaseModel):
     freshness: int
     source_ids: list[int]
     evidence: list[str]
+    context_excerpt: str = Field(description="Exact background passage from a cited feed body or summary. Empty for evergreen.")
 
 
 class Plan(BaseModel):

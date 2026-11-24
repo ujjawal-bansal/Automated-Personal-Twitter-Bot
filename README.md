@@ -1,16 +1,22 @@
 # Personal daily X agent
 
-The agent selects one original standalone post for @AtheXTheist per Asia/Kolkata calendar day. Current affairs compete with evergreen observations. A dated story needs independent reporting and passes a trend-exclusion check. If research is unavailable the writer can use an evergreen idea. Failed quality checks can leave a day empty.
+The agent selects one original standalone post for @AtheXTheist per Asia/Kolkata calendar day. Current affairs compete with evergreen observations. A timely idea needs corroborating reporting and a background passage. If research is unavailable the writer can use an evergreen idea. Failed quality checks can leave a day empty.
 
 ## Architecture
 
 - GitHub Actions checks the daily slot twice an hour. An encrypted file on the account’s Git state branch reserves the date. The local runner uses the same reservation.
-- Five publisher RSS feeds supply dated summaries. The model sees these as untrusted evidence. Timely ideas must identify two different publishers, supply literal evidence from each and pass the separate review for source independence, claim support and X trend overlap. This verifies against summaries only. An editor model can still misjudge evidence.
+- Before drafting, the agent checks nine recent-news and section feeds from five publishers, including India, world, business, technology, science and culture. Optional X trend names from India and worldwide aid discovery. Timely plans cite two publishers, quote supporting summary or feed-body passages and identify an exact passage for context. The reviewer checks independence, contested interpretations and whether the draft reflects the author’s own stated views. Duplicated reporting, insufficient context or weak fit can disqualify a popular story. Coverage is limited to the supplied feed material and model assessments can be wrong.
 - Gemini proposes topics, writes up to three drafts per selected topic, then evaluates factual support, argument novelty, voice and specificity. Bounded retries use the configured model order. The profile in agent/profile.py is derived from the four Phase 1 documents. Engagement cannot change it.
 - Drafts and evaluations exist in memory during generation. Console output in Actions contains status only. The publisher uses user-context OAuth and verifies the X user ID. Optional public-domain illustrations can be enabled with AGENT_COMMONS_IMAGES=true. The legacy card renderer and collection remain available separately.
 - The ledger commits a SHA-256 fingerprint of the intended text and its topic before the only X write. After a timeout the next run searches the account timeline for the same text. An inconclusive lookup leaves that slot held. A crash between persisting intent and sending can therefore cost a post. There is no backfill after midnight.
-- The current snapshot holds one posting slot and up to ten recent topic labels. The publisher uses the Kolkata date to retire yesterday’s slot. Topic labels help the next draft avoid repetition. New draft text, review notes and engagement metrics are never written to the state branch.
+- The current snapshot holds one posting slot and up to ten recent topic labels. The publisher uses the Kolkata date to retire yesterday’s slot. Topic labels help the next draft avoid repetition. It also holds up to 24 preferences explicitly saved by the author. Generated drafts, full edited versions, automated reviews and engagement metrics stay out of the snapshot.
 - data/history.json is an import of historic bot posts. data/report.md and data/weights.json describe the legacy system. The runtime stores state on the same repository’s agent-state-<account ID> branch. The historical handoff describes the preceding deployment.
+
+## Personal review and changing interests
+
+Run `./run_local.sh review` from a checkout with the Python environment, account encryption secret and Git access configured. It generates a private draft and displays its cited source URLs. Approve, reject or edit it in the terminal. Approval here records a review decision only when you supply a reusable note; the review command never publishes. Leave the reason blank for a one-off decision. For an edit with a reason, Gemini can suggest a concise lesson from the original and edited wording. You choose what to save under a subject such as “work” or “music”. Drafts, edits and notes used for generation or summarisation are sent to the configured Gemini API.
+
+Run `./run_local.sh preferences` to inspect, replace or forget a current preference directly. Reusing a subject replaces its earlier note. The planner, writer and reviewer all receive the current notes alongside the archive baseline. Interest in a subject, an approval of wording or a third-party post is insufficient evidence for a personal opinion. A credential-free dry run uses the baseline profile and bundled topic history. A dry run with the encryption secret reads the same preferences as the scheduled publisher.
 
 ## Deployment
 

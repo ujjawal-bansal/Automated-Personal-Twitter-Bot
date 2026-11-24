@@ -91,12 +91,14 @@ class Editorial(unittest.TestCase):
     def test_relevance_and_verification(self):
         i=dict(topic='air',argument='why measurement matters',format='question',kind='timely',
                source_ids=[0,1],fit=5,insight=4,freshness=4,evidence=['air measurements']*2)
-        s=[dict(source=k,headline='air measurements',summary='') for k in ['A','B']]
-        self.assertEqual(len(editorial.ranked_topics({'ideas':[i]},s,['sport'])),1)
-        for refs,trends in [(s,[]),([s[0],s[0]],['sport'])]:
-            self.assertFalse(editorial.ranked_topics({'ideas':[i]},refs,trends))
+        context = 'The city has published air measurements since 2019.'
+        i['context_excerpt'] = context
+        s=[dict(source=k,headline='air measurements',summary=context + (' Officials released the figures.' if k == 'A' else ' Residents are reviewing the findings.')) for k in ['A','B']]
+        self.assertEqual(len(editorial.ranked_topics({'ideas':[i]},s)),1)
+        for refs in ([s[0],s[0]], [dict(r, summary='') for r in s], [dict(r, summary=context) for r in s]):
+            self.assertFalse(editorial.ranked_topics({'ideas':[i]},refs))
         i['evidence'][0]='fabricated quote'
-        self.assertFalse(editorial.ranked_topics({'ideas':[i]},s,['sport']))
+        self.assertFalse(editorial.ranked_topics({'ideas':[i]},s))
 
     def test_semantic_veto_and_quality(self):
         model=Mock()
@@ -105,12 +107,32 @@ class Editorial(unittest.TestCase):
                     distinct=False,policy_ok=True)
         def attempt():
             model.ask.side_effect=[{'ideas':[idea]},{'texts':[DRAFT['text']]},{'reviews':[review]}]
-            return editorial.choose(model,[],[],[])
+            return editorial.choose(model,[],[],[],[{'subject':'music', 'note':'more lyrics'}])
         with self.assertRaises(ValueError):
             attempt()
         review['distinct']=True
         self.assertEqual(attempt()['quality'],15)
+        for call in model.ask.call_args_list[-3:]:
+            self.assertEqual(call.args[1]['author_feedback'][0]['subject'], 'music')
         self.assertFalse(editorial.acceptable_text(DRAFT['text'],[DRAFT]))
+
+    def test_missing_trends_still_plans_from_news(self):
+        model = Mock()
+        model.ask.return_value = {'ideas': []}
+        sources = [dict(source='Example', summary='A report')]
+        with self.assertRaisesRegex(ValueError, 'quality_threshold'):
+            editorial.choose(model, sources, [], [])
+        self.assertEqual(model.ask.call_args_list[0].args[1]['articles'], sources)
+
+    def test_review_can_reject_without_saving_either_draft_or_reason(self):
+        from agent.feedback import review
+        store = Mock()
+        with patch('builtins.input', side_effect=['r', '']), patch('builtins.print'):
+            review(store, DRAFT)
+        store.set_feedback.assert_not_called()
+        with patch('builtins.input', side_effect=['r', 'Skip CEO gossip', 'Technology']), patch('builtins.print'):
+            review(store, DRAFT)
+        store.set_feedback.assert_called_once_with('Technology', 'rejected', 'Skip CEO gossip')
 
     def test_schedule(self):
         t=daily.target(NOW.date(),'seed')
@@ -154,6 +176,16 @@ class GitLedger(unittest.TestCase):
         self.assertFalse(restart.claim(day,'new'))
         self.assertEqual(restart.slot(day)['tweet_id'],'1234')
 
+
+    def test_feedback_replaces_and_forgets_across_restarts(self):
+        self.store.set_feedback('Work', 'approved', 'Prefer concrete observations.')
+        self.store.set_feedback('work', 'edited', 'More questions about everyday work.')
+        again = Ledger('42', self.repo)
+        notes = again.feedback()
+        self.assertEqual(len(notes), 1)
+        self.assertEqual(notes[0]['decision'], 'edited')
+        self.assertTrue(again.forget_feedback('Work'))
+        self.assertEqual(self.store.feedback(), [])
 
     def test_wrong_key_fails_closed(self):
         day = datetime.now(TZ).date()

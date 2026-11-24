@@ -41,7 +41,10 @@ def compact(state, day):
         draft = slot.pop('draft')
         if slot['state'] == 'sending':
             slot.update(topic=draft['topic'], digest=fingerprint(draft['text']))
-    return dict(slot=slot, topics=topics[-10:])
+    result = dict(slot=slot, topics=topics[-10:])
+    if state.get('feedback'):
+        result['feedback'] = state['feedback']
+    return result
 
 
 class Ledger:
@@ -158,3 +161,34 @@ class Ledger:
     def pending(self):
         slot = self.load()[1]['slot']
         return [slot] if slot and slot['state'] == 'sending' else []
+
+    def feedback(self):
+        return self.load()[1].get('feedback', [])
+
+    def set_feedback(self, subject, decision, note):
+        subject, note = subject.strip(), note.strip()
+        if not 0 < len(subject) <= 80 or not 0 < len(note) <= 400:
+            raise ValueError('Use a subject of 1–80 characters and a note of 1–400 characters.')
+        if decision not in ('approved', 'rejected', 'edited', 'updated'):
+            raise ValueError('invalid_feedback_decision')
+
+        def save(state):
+            notes = [item for item in state.get('feedback', [])
+                     if item['subject'].casefold() != subject.casefold()]
+            if len(notes) >= 24:
+                raise ValueError('There are 24 active notes. Replace or remove one first.')
+            notes.append(dict(subject=subject, decision=decision, note=note,
+                              date=datetime.now(TZ).date().isoformat()))
+            state['feedback'] = notes
+            return True
+        return self.update(save)
+
+    def forget_feedback(self, subject):
+        def forget(state):
+            current = state.get('feedback', [])
+            kept = [item for item in current if item['subject'].casefold() != subject.strip().casefold()]
+            if len(kept) == len(current):
+                return False
+            state['feedback'] = kept
+            return True
+        return self.update(forget)
