@@ -21,7 +21,7 @@ MIN_GAP_MINUTES = 120
 CARD_SIGNATURE = "Vashu Vats"
 
 # Tried in order. Free-tier friendly Flash models first.
-GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
+GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 
 PERSONA = """You write tweets for Vashu Vats, a 20-something Indian guy on X who reads a lot
 and posts what he is actually thinking about. Hacker, into philosophy, history, finance,
