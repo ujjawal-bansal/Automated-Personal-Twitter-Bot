@@ -1,177 +1,32 @@
-# Automated Personal Twitter Bot
+# Personal daily X agent
 
-A self-running X (Twitter) bot that writes and posts tweets in one person's voice. It uses Google Gemini to write the tweets, makes its own Hindi/Urdu shayari cards, picks public-domain images from Wikimedia Commons and reacts to trending stories. Once a week it looks at how its posts did and shifts what it posts toward what works.
+The agent selects one original standalone post for @AtheXTheist per Asia/Kolkata calendar day. Current affairs compete with evergreen observations. A dated story needs independent reporting and passes a trend-exclusion check. If research is unavailable the writer can use an evergreen idea. Failed quality checks can leave a day empty.
 
-It runs entirely on **GitHub Actions**. There is no server, and no laptop has to stay on.
+## Architecture
 
----
+- GitHub Actions checks the daily slot twice an hour. PostgreSQL reserves the account and date. The local runner uses the same reservation.
+- Five publisher RSS feeds supply dated summaries. The model sees these as untrusted evidence. Timely ideas must identify two different publishers, supply literal evidence from each and pass the separate review for source independence, claim support and X trend overlap. This verifies against summaries only. An editor model can still misjudge evidence.
+- Gemini proposes topics, writes up to three drafts per selected topic, then evaluates factual support, argument novelty, voice and specificity. Bounded retries use the configured model order. The profile in agent/profile.py is derived from the four Phase 1 documents. Engagement cannot change it.
+- Drafts and evaluations stay in the private ledger. Console output in Actions contains status only. The publisher uses user-context OAuth and verifies the X user ID. Optional public-domain illustrations can be enabled with AGENT_COMMONS_IMAGES=true. The legacy card renderer and collection remain available separately.
+- The ledger commits the intended post before the only X write. After a timeout the next run searches the account timeline for the same text. An inconclusive lookup leaves that slot held. A crash between persisting intent and sending can therefore cost a post. There is no backfill after midnight.
+- The agent records available X metrics after 48 hours. Six comparable measured posts are required before a median format, topic or hour rate can influence selection. No exposure denominator means no rate. Time exploration stays inside the configured window.
+- data/history.json is an import of historic bot posts. data/report.md and data/weights.json describe the legacy system. The new runtime stores state in PostgreSQL. The historical handoff describes the preceding deployment.
 
-## Features
+## Deployment
 
-- **Tweets in a persona's voice.** Gemini writes one tweet at a time from a detailed persona and a set of content pillars: *mind & philosophy*, *ancient mysteries*, *prophecy & surveillance*, *geopolitics* and *history*. Geopolitics posts are checked against Google Search results first.
-- **Anti-"AI voice" filter.** Every draft is checked against a list of phrases that make writing sound machine-made (`BANNED_PATTERNS`). A draft that trips the filter is thrown away and rewritten, and so is one too similar to a recent post.
-- **Shayari cards.** Classic couplets from `content/shayari.json` are posted with a designed image card, drawn in Devanagari or Urdu Nastaliq with Pillow, with the poet's name.
-- **Real images, never AI images.** Some posts get a **public-domain** image from Wikimedia Commons. Gemini suggests a search, the bot keeps only public-domain/CC0 results, and Gemini then picks the best match or none.
-- **Trending posts.** Once a day the bot reads X's live trending lists (India and Worldwide). Gemini picks a real story, checks the facts with Google Search and writes a tweet with up to 3 relevant hashtags. Deaths, disasters, communal violence and rumours are skipped.
-- **Human-like schedule.** It posts every 3–4 days at a random time inside an evening window, plus one trending post a day in an afternoon window. If GitHub skips a scheduled run, the missed post goes out on the next run, and the bot never posts twice for the same slot.
-- **Weekly self-learning.** The bot reads its own posts' metrics (views, likes, replies, reposts, bookmarks) and adjusts how often each pillar is picked, within limits so the feed stays a mix.
-- **Cheap to run.** GitHub Actions and the Gemini free tier cover almost everything. X's pay-per-use API costs about a dollar a month.
+Use Python 3.12+, PostgreSQL 15+ and the psql client on PATH. The database role must be able to create its three tables and write rows. Restrict database access and enable provider backups. For a hosted database use its TLS connection string, including its recommended certificate verification settings. GitHub standard Ubuntu runners have a PostgreSQL client.
 
-## How it works
+1. Set GitHub Actions secrets DATABASE_URL, GEMINI_API_KEY, X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET and SCHEDULE_SEED. Configure credentials for the account ID in the workflow. Tokens need read and write access. No passwords or keys belong in source control.
+2. Verify the configured Gemini model is available to the project. Override with the Actions variable GEMINI_MODELS (a comma-separated model list). The existing repository defaults are tried otherwise. The model receives private drafts and public source excerpts. Review the provider's data handling for your chosen API tier.
+3. Require the test workflow to pass, including its disposable PostgreSQL service. Run the daily workflow manually in dry-run mode while AGENT_ENABLED is unset. Shadow evaluates a candidate without database writes or X posts. For a private local preview, create a venv, install requirements and run ./run_local.sh dry-run.
+4. Identify any active publisher for this X account. The Mac checkout previously inspected pointed to VashuVats/x-bot, a distinct repository. Disable or redirect competing scheduled dispatches before enabling this one. A legacy client outside this database cannot participate in its daily limit. Start on the next Kolkata day if an older deployment may already have posted today.
+5. On the deployed default branch set the Actions repository variable AGENT_ENABLED=true. After this cutover the workflow publishes autonomously. A backup scheduler can dispatch this workflow in auto mode. Never run another independent publisher for the same account. Verify the first real receipt on a normal publishing day.
+6. To stop future sends, switch AGENT_ENABLED to false and stop any in-flight run. Reconcile any pending intent before re-enabling. Keep the database when upgrading or rolling back.
 
-```
-GitHub Actions (cron / cron-job.org / manual)
-        │
-        ▼
-     bot.py ── is a post due? (config.WINDOWS, POST_EVERY_DAYS, TRENDING) ── no ──▶ exit
-        │ yes
-        ├─▶ choose a pillar (weights from data/weights.json, learned weekly)
-        ├─▶ Gemini writes the tweet  ──▶ AI-phrase + similarity checks (rewrite if needed)
-        ├─▶ images.py: shayari card or Wikimedia Commons image (optional)
-        ├─▶ post to X (tweepy)
-        └─▶ save to data/history.json ── committed back to the repo by the workflow
+The default target window is noon to 4 pm IST. The agent can catch up until 23:55 on the same date. POST_START_HOUR and POST_END_HOUR override the window. The current schedule uses two wakes per hour and does research only when a slot is acquired. A day permits three work leases; each has a 12-call model budget. Provider failures can still incur costs. Set billing caps in provider consoles.
 
-learn.py (weekly) ── reads post metrics from X ──▶ data/weights.json + data/report.md
-```
+## Monitoring and validation
 
-## Tech stack
+Use the Actions run status and private agent_slots, agent_memory and agent_events tables. Check for skipped days, stale working slots and unresolved sending records. Revoked credentials, exhausted credits and prolonged database outages require external action. Diagnostics omit draft bodies and credentials.
 
-| Area | Tools |
-|---|---|
-| Language | Python 3.12 |
-| Text generation | Google Gemini (`google-genai`), with Google Search grounding |
-| X / Twitter | `tweepy`, `requests-oauthlib` (X API v2 + media upload) |
-| Images | `Pillow` with `libraqm` / `libfribidi` for Hindi & Urdu text shaping |
-| Image source | Wikimedia Commons API (public-domain / CC0 only) |
-| Scheduling & hosting | GitHub Actions, optionally triggered by cron-job.org |
-
-## Project structure
-
-```
-.
-├── bot.py                    # Main entry: scheduling, generation, checks, posting
-├── config.py                 # Persona, pillars, topics, schedule, models, trending + learning settings
-├── images.py                 # Shayari cards, Wikimedia Commons search, X media upload
-├── learn.py                  # Weekly self-learning: metrics → pillar weights + report
-├── content/shayari.json      # Couplets the bot posts with cards
-├── data/
-│   ├── history.json          # Everything the bot has posted (written by the bot)
-│   ├── weights.json          # Learned pillar weights
-│   └── report.md             # Latest weekly performance report
-├── fonts/                    # Tiro Devanagari Hindi, Noto Nastaliq Urdu (SIL OFL)
-├── .github/workflows/post.yml# Scheduled + manual GitHub Actions workflow
-├── run_local.sh              # Helper to run the bot on your own machine
-├── .env.example              # Template for local environment variables
-└── requirements.txt
-```
-
-## Setup
-
-### 1. Get API keys
-
-- **Gemini:** create a key at [Google AI Studio](https://aistudio.google.com).
-- **X:** on [developer.x.com](https://developer.x.com), create a Project and an App and set its permissions to **Read and write**. Then generate the API Key/Secret and an Access Token/Secret. Generate the access token *after* turning on Read and write, or it will be read-only. Add a small credit balance for pay-per-use.
-
-### 2. Add GitHub secrets
-
-In the repo, go to **Settings → Secrets and variables → Actions** and add:
-
-| Secret | What it is |
-|---|---|
-| `GEMINI_API_KEY` | Gemini API key |
-| `X_API_KEY` | X API Key |
-| `X_API_SECRET` | X API Key Secret |
-| `X_ACCESS_TOKEN` | X Access Token |
-| `X_ACCESS_TOKEN_SECRET` | X Access Token Secret |
-| `SCHEDULE_SEED` | Any random word. It makes the posting times unpredictable |
-
-Then set **Settings → Actions → General → Workflow permissions** to **Read and write**, so the bot can commit its post history.
-
-### 3. Run it from GitHub
-
-Go to **Actions → Post to X → Run workflow** and pick a mode:
-
-| Mode | What it does |
-|---|---|
-| `dry-run` | Writes a normal tweet and shows it in the log without posting. Any image is saved as the `preview` artifact |
-| `post-now` | Posts a normal tweet right away |
-| `trending-dry-run` | Writes a trending tweet without posting |
-| `trending-now` | Posts a trending tweet right away |
-| `learn-now` | Re-runs the weekly learning step and updates the report and weights |
-| `auto` | Same as a scheduled run: posts only if a slot is due |
-
-After that the workflow runs by itself on its cron schedule.
-
-### 4. Run it locally (optional)
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env        # fill in your keys; .env is gitignored
-./run_local.sh              # dry run: write a normal tweet, don't post
-./run_local.sh trending     # dry run: write a trending tweet
-./run_local.sh post-now     # really post a normal tweet
-./run_local.sh trending-now # really post a trending tweet
-./run_local.sh auto         # behave like a scheduled run
-```
-
-Hindi/Urdu cards need the system libraries `libraqm` and `libfribidi`. On macOS, install them with Homebrew (`brew install libraqm`). The script points Python to `/opt/homebrew/lib`.
-
-You can also call the bot directly: `python bot.py --dry-run --force [--trending]`.
-
-## Configuration
-
-All tuning happens in `config.py`. You don't need to edit `bot.py`.
-
-| Setting | Controls |
-|---|---|
-| `PERSONA` | The voice and hard rules for every tweet |
-| `PILLARS` | Themes, topics, relative `weight`, Google Search grounding and `image_chance` |
-| `POST_EVERY_DAYS`, `WINDOWS`, `MIN_GAP_MINUTES` | How often and when normal posts go out (IST) |
-| `TRENDING` | Trending posts: on/off, X trend locations, blocked story types, hashtag rules |
-| `LEARNING` | Weekly learning: on/off, floor/ceiling share per pillar, minimum posts before judging |
-| `BANNED_PATTERNS` | Regexes for phrases that sound AI-written |
-| `GEMINI_MODELS` | Gemini models, tried in order |
-| `CARD_SIGNATURE` | Name shown on shayari cards |
-
-To add shayari, add entries to `content/shayari.json`:
-
-```json
-{"poet": "मिर्ज़ा ग़ालिब", "text": "first line\nsecond line"}
-```
-
-## Reliable timing with cron-job.org
-
-GitHub's free scheduler often skips runs. To make the timing dependable, a free [cron-job.org](https://cron-job.org) job can start the workflow every 30 minutes with mode `auto`. Extra runs never cause double posts.
-
-- **URL:** `https://api.github.com/repos/<owner>/<repo>/actions/workflows/post.yml/dispatches` (method `POST`)
-- **Headers:** `Authorization: Bearer <fine-grained token with Actions read/write on this repo>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`
-- **Body:** `{"ref":"main","inputs":{"mode":"auto"}}`
-
-## Weekly self-learning
-
-`learn.py` reads each post's metrics once, about two days after it goes out. It scores each pillar and moves the posting shares **halfway** toward the new target. Every pillar keeps between 8% and 30% of posts, a pillar needs at least 3 measured posts before it is judged, and one viral post can't carry a whole pillar. The results go to `data/report.md`.
-
-## Running costs (approx.)
-
-| Piece | Cost |
-|---|---|
-| GitHub Actions | Free tier |
-| Gemini API | Free tier (including Google Search) |
-| X API, normal posts | About $0.015 per post, roughly $0.15–0.25/month |
-| X API, trending posts | About $1/month (one post plus two trend-list reads a day) |
-| Weekly learning | About $0.10/month |
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| `401` / `403` from X | Access token was created before Read and write was on. Regenerate it and update the secrets |
-| `402` from X | Out of X API credits. Top up in the developer console |
-| `429` from Gemini | Free-tier rate limit. The next run retries |
-| Gemini "model not found" | Google retired a model. Update `GEMINI_MODELS` in `config.py` |
-| Shayari posted without a card | Text-shaping libraries are missing. The post still goes out as text |
-| Scheduled runs stopped | GitHub pauses schedules after 60 days without activity. Re-enable the workflow |
-
-## Credits
-
-Fonts: [Tiro Devanagari Hindi](fonts/OFL-TiroDevanagariHindi.txt) and [Noto Nastaliq Urdu](fonts/OFL-NotoNastaliqUrdu.txt), both under the SIL Open Font License.
+Run python -m unittest discover -s tests -v with the dependencies installed. Set TEST_DATABASE_URL to a disposable PostgreSQL database to enable concurrency and restart tests. Mock tests send no posts. The dry-run, auto and learn-now workflow dispatches share the same implementation as the CLI. Legacy local force-mode aliases retain the daily cap.
