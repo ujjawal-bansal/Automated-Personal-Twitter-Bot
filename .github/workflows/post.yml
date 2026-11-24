@@ -1,86 +1,45 @@
-name: Post to X
-
+name: Daily personal post
 on:
   schedule:
-    # Cron is in UTC (IST minus 5:30). The bot checks twice an hour from 12:47 to 4:17 PM IST
-    # (trending posts, see config.TRENDING) and from 6:47 PM to 12:17 AM IST (normal posts,
-    # see config.POST_EVERY_DAYS and config.WINDOWS). It only posts on a posting day, after
-    # that day's random time; most runs just check and stop.
-    # Odd minutes on purpose: GitHub drops many runs scheduled at :00 and :30.
-    - cron: "17,47 7-10,13-18 * * *"
-    # GitHub still skips most scheduled runs (often only 1-2 a day fire), so cron-job.org also
-    # starts this workflow every 30 minutes with mode "auto" (README: "Reliable timing").
-    # Extra runs never double-post.
+    - cron: '17,47 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: "dry-run = show a normal tweet without posting, post-now = post a normal tweet now, trending-dry-run = show a trending tweet without posting, trending-now = post a trending tweet now, learn-now = update the weekly report and pillar weights, auto = same as a scheduled run (used by cron-job.org)"
         type: choice
-        options: [dry-run, post-now, trending-dry-run, trending-now, learn-now, auto]
+        description: Daily run, private shadow evaluation, or metrics collection
+        options: [dry-run, auto, learn-now]
         default: dry-run
-
 permissions:
-  contents: write  # lets the bot save data/ (history, learned weights, weekly report)
-
+  contents: read
 concurrency:
-  group: post-to-x  # never two runs at once, so no double posts
+  group: personal-x-publisher
   cancel-in-progress: false
-
 jobs:
-  post:
+  daily:
+    if: vars.AGENT_ENABLED == 'true' || github.event.inputs.mode == 'dry-run'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
-
-      - name: Install text-shaping libraries (for Hindi/Urdu cards)
-        # Ubuntu's servers sometimes fail. Try 3 times; if it still fails, carry on:
-        # the bot then posts shayari without a card instead of skipping the whole run.
-        continue-on-error: true
-        run: |
-          for i in 1 2 3; do
-            sudo apt-get update -qq && sudo apt-get install -y -qq libraqm0 libfribidi0 && exit 0
-            echo "apt failed (try $i), retrying in 20s"; sleep 20
-          done
-          exit 1
-
-      - name: Install Python packages
-        run: pip install -r requirements.txt
-
-      - name: Run the bot
+      - run: pip install -r requirements.txt
+      - run: python bot.py
         env:
+          AGENT_ENABLED: ${{ vars.AGENT_ENABLED }}
+          X_ACCOUNT_ID: '1703345238167924736'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POST_START_HOUR: ${{ vars.POST_START_HOUR || '12' }}
+          POST_END_HOUR: ${{ vars.POST_END_HOUR || '16' }}
+          AGENT_COMMONS_IMAGES: ${{ vars.AGENT_COMMONS_IMAGES }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODELS: ${{ vars.GEMINI_MODELS }}
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
           SCHEDULE_SEED: ${{ secrets.SCHEDULE_SEED }}
-          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' || github.event.inputs.mode == 'trending-dry-run' }}
-          FORCE: ${{ contains(fromJSON('["dry-run","post-now","trending-dry-run","trending-now"]'), github.event.inputs.mode) }}
-          TRENDING: ${{ github.event.inputs.mode == 'trending-dry-run' || github.event.inputs.mode == 'trending-now' }}
+          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' }}
           LEARN_ONLY: ${{ github.event.inputs.mode == 'learn-now' }}
-        run: python bot.py
-
-      - name: Save image preview (dry runs)
-        if: github.event.inputs.mode == 'dry-run'
-        uses: actions/upload-artifact@v4
-        with:
-          name: preview
-          path: preview/
-          if-no-files-found: ignore
-
-      - name: Save post history, weights and report
-        if: github.event.inputs.mode != 'dry-run' && github.event.inputs.mode != 'trending-dry-run'
-        run: |
-          git config user.name "x-bot"
-          git config user.email "x-bot@users.noreply.github.com"
-          git add data/
-          if git diff --cached --quiet; then echo "Nothing new to save."; exit 0; fi
-          git commit -m "Log post"
-          git pull --rebase origin "${GITHUB_REF_NAME}"
-          git push
