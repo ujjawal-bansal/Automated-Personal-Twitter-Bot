@@ -36,9 +36,28 @@ class Model:
                 obj=json.loads(response.text)
                 if isinstance(obj,dict):
                     return obj
-            except Exception:
-                # Redact SDK responses, which may contain prompts.
-                pass
+                failure = 'unexpected_json_shape'
+            except Exception as exc:
+                # Only fixed labels and numeric HTTP codes may enter public logs.
+                code = getattr(exc, 'code', None)
+                failure = 'sdk_error'
+                if isinstance(exc, (json.JSONDecodeError, TypeError)):
+                    failure = 'invalid_json'
+                if isinstance(code, int) and 400 <= code < 600:
+                    failure = f'http_{code}'
+                    message = str(exc).lower()
+                    for indicator, label in (
+                        ('api_key_invalid', 'invalid_key'),
+                        ('api key was reported as leaked', 'blocked_key'),
+                        ('api key expired', 'expired_key'),
+                        ('api_key_service_blocked', 'service_blocked'),
+                        ('limit: 0', 'zero_quota'),
+                        ('api_key_http_referrer_blocked', 'referrer_blocked'),
+                    ):
+                        if indicator in message:
+                            failure += '_' + label
+                            break
+            print(f'Gemini attempt {attempt + 1}: {failure}', flush=True)
             time.sleep(min(2**attempt,4))
         raise RuntimeError('model_unavailable')
 
