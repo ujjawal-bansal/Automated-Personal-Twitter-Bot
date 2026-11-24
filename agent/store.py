@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS agent_slots (
@@ -25,11 +26,28 @@ CREATE TABLE IF NOT EXISTS agent_events (
 class Ledger:
     def __init__(self, url, account):
         self.url = url
+        parsed = urlsplit(url)
+        if parsed.scheme not in ('postgresql', 'postgres') or not parsed.path.strip('/'):
+            raise ValueError('invalid_database_url')
+        self.connection = {'PGDATABASE': unquote(parsed.path.lstrip('/'))}
+        for key, value in [('PGHOST', parsed.hostname), ('PGPORT', parsed.port),
+                           ('PGUSER', parsed.username), ('PGPASSWORD', parsed.password)]:
+            if value is not None:
+                self.connection[key] = unquote(str(value))
+        options = {'sslmode':'PGSSLMODE', 'sslrootcert':'PGSSLROOTCERT',
+                   'channel_binding':'PGCHANNELBINDING', 'host':'PGHOST', 'port':'PGPORT',
+                   'sslcert':'PGSSLCERT', 'sslkey':'PGSSLKEY',
+                   'application_name':'PGAPPNAME'}
+        for key, value in parse_qsl(parsed.query):
+            if key not in options:
+                raise ValueError('unsupported_database_option')
+            self.connection[options[key]] = value
         self.account = str(account)
 
     def sql(self, statement, **data):
         env = {k: os.environ[k] for k in ('PATH','HOME','LANG') if k in os.environ}
-        env.update(PGDATABASE=self.url, PGCONNECT_TIMEOUT='8',
+        env.update(self.connection)
+        env.update(PGCONNECT_TIMEOUT='8',
                    PGOPTIONS='-c statement_timeout=10000 -c lock_timeout=5000',
                    AGENT_DATA=json.dumps(dict(data, account=self.account)))
         # getenv keeps credentials and private drafts out of the process arguments.

@@ -167,3 +167,14 @@ class Transport(unittest.TestCase):
         pub.read.return_value={'data':[{'id':'123','public_metrics':{'like_count':0}}]}
         learning.collect(store,pub,NOW)
         self.assertEqual(store.sql.call_args.kwargs['metrics'],{'like_count':0})
+
+
+class LedgerTransport(unittest.TestCase):
+    def test_psql_connection_secrets_stay_off_command_line(self):
+        store=Ledger('postgresql://user:pass%40word@db.example:5433/memory?sslmode=require','42')
+        with patch('agent.store.subprocess.run',return_value=Mock(returncode=0,stdout='true\n')) as run:
+            self.assertTrue(store.claim(NOW.date(),'lease'))
+        args=run.call_args
+        self.assertNotIn('pass',str(args.args))
+        self.assertEqual(args.kwargs['env']['PGPASSWORD'],'pass@word')
+        self.assertEqual(args.kwargs['env']['PGSSLMODE'],'require')
