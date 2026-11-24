@@ -63,5 +63,8 @@ if __name__ == "__main__":
     except Exception as exc:
         # Public Actions logs must never disclose drafts, credentials or response bodies.
         import sys
-        print(f"Daily agent failed: {type(exc).__name__}", file=sys.stderr)
+        cause = type(exc).__name__
+        if isinstance(exc, ValueError) and exc.args == ('quality_threshold',):
+            cause = 'quality_threshold'
+        print(f"Daily agent failed: {cause}", file=sys.stderr)
         sys.exit(1)
