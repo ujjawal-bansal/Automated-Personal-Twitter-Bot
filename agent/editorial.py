@@ -29,7 +29,9 @@ class Model:
 
     def ask(self, instruction, data, schema):
         from google.genai import types
-        for attempt,model in enumerate(self.models[:3]):
+        candidates = self.models[:3]
+        transient = []
+        for attempt,model in enumerate(candidates):
             if self.calls>=12:
                 break
             self.calls+=1
@@ -64,7 +66,15 @@ class Model:
                             failure += '_' + label
                             break
             print(f'Gemini attempt {attempt + 1}: {failure}', flush=True)
-            time.sleep(min(2**attempt,4))
+            if failure in ('http_500', 'http_502', 'http_503', 'http_504'):
+                transient.append(model)
+            if attempt + 1 == len(candidates) and transient and attempt < len(self.models[:3]) and self.calls < 12:
+                # Allow one recovery round, restricted to transient server errors.
+                candidates.extend(transient)
+                transient = []
+                time.sleep(15)
+            if attempt + 1 < len(candidates) and self.calls < 12:
+                time.sleep(min(2**attempt, 8))
         raise RuntimeError('model_unavailable')
 
 
