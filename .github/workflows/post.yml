@@ -16,7 +16,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   daily:
-    if: vars.AGENT_ENABLED == 'true' || github.event.inputs.mode == 'dry-run'
+    # The account owner enabled this repository's main deployment. An explicit false pauses it.
+    if: >-
+      github.event.inputs.mode == 'dry-run' || vars.AGENT_ENABLED == 'true' ||
+      (vars.AGENT_ENABLED == '' && github.repository_id == '1468386893' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -28,7 +31,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python bot.py
         env:
-          AGENT_ENABLED: ${{ vars.AGENT_ENABLED }}
+          AGENT_ENABLED: ${{ github.event.inputs.mode != 'dry-run' && 'true' || 'false' }}
           X_ACCOUNT_ID: '1703345238167924736'
           AGENT_STATE_KEY: ${{ secrets.AGENT_STATE_KEY }}
           POST_START_HOUR: ${{ vars.POST_START_HOUR || '12' }}
