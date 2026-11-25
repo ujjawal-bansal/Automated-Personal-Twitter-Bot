@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import re
 import time
 from collections import Counter
@@ -22,6 +23,10 @@ Return a JSON object only. No external actions. Never invent a source or fill a 
 FORMATS = ('observation','humour','question','reflection','argument')
 
 
+class ModelTemporarilyUnavailable(RuntimeError):
+    """Every attempted model returned a temporary server error."""
+
+
 class Model:
     def __init__(self):
         from google import genai
@@ -35,6 +40,7 @@ class Model:
         from google.genai import types
         candidates = self.models[:3]
         transient = []
+        all_transient = bool(candidates) and self.calls < 12
         for attempt,model in enumerate(candidates):
             if self.calls>=12:
                 break
@@ -69,16 +75,20 @@ class Model:
                         if indicator in message:
                             failure += '_' + label
                             break
-            print(f'Gemini attempt {attempt + 1}: {failure}', flush=True)
+            print(f'Gemini {schema.__name__} attempt {attempt + 1} ({model}): {failure}', flush=True)
             if failure in ('http_500', 'http_502', 'http_503', 'http_504'):
                 transient.append(model)
+            else:
+                all_transient = False
             if attempt + 1 == len(candidates) and transient and attempt < len(self.models[:3]) and self.calls < 12:
                 # Allow one recovery round, restricted to transient server errors.
                 candidates.extend(transient)
                 transient = []
-                time.sleep(15)
+                time.sleep(random.uniform(30, 60))
             if attempt + 1 < len(candidates) and self.calls < 12:
                 time.sleep(min(2**attempt, 8))
+        if all_transient:
+            raise ModelTemporarilyUnavailable('model_temporarily_unavailable')
         raise RuntimeError('model_unavailable')
 
 
@@ -147,7 +157,8 @@ def acceptable_text(text,memory):
 def choose(model,sources,trends,memory,feedback=()):
     context=recent_context(memory)
     args=dict(articles=sources, trend_signals=trends, history=context, author_feedback=feedback)
-    plan_instruction = """Propose four distinct ideas, mixing timely and evergreen when evidence permits.
+    plan_instruction = """Propose four distinct ideas. Include at least one evergreen observation even on a busy news day.
+Use the other slots for timely ideas when the supplied reports support them.
 Scan developments in India and globally across politics, society, economics, technology and culture.
 Use trend names and recurring coverage to spot debates; neither proves a claim or the author's opinion.
 Rank by a specific link to the author's interests, including newer interests in author_feedback.
@@ -162,8 +173,8 @@ Keep topic and argument under 350 characters each."""
     ideas = ranked_topics(plan,sources)[:2]
     if not ideas:
         retry_instruction = plan_instruction + ' Propose four new evergreen ideas only. Leave source_ids and evidence empty. Rate fit and insight honestly.'
-        plan = model.ask(retry_instruction, args, Plan)
-        ideas = ranked_topics(plan, sources)[:2]
+        plan = model.ask(retry_instruction, {**args, 'articles': [], 'trend_signals': []}, Plan)
+        ideas = ranked_topics(plan, [])[:2]
     print(f'Eligible ideas for drafting: {len(ideas)}', flush=True)
     for idea in ideas:
         generated=model.ask("""Generate 3 distinct original standalone candidates for this idea.
