@@ -5,7 +5,7 @@ import os
 import uuid
 from datetime import datetime,time,timedelta
 
-from agent.editorial import Model,choose
+from agent.editorial import Model, ModelTemporarilyUnavailable, choose
 from agent.research import discover
 from agent.store import Ledger, TZ, compact
 
@@ -83,6 +83,9 @@ def run(store,publisher,generate=draft,now=clock,force=False):
             raise ValueError('day_closed')
         if not store.intent(day,owner,selected):
             return 'lost_lease'
+    except ModelTemporarilyUnavailable:
+        store.failure(day, owner, 'model_temporarily_unavailable', 'working')
+        return 'generation_deferred'
     except Exception as exc:
         kind=str(exc) if isinstance(exc,ValueError) and str(exc) in ('quality_threshold','account_identity_mismatch','day_closed') else type(exc).__name__
         store.failure(day,owner,kind,'working')

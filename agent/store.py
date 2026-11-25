@@ -150,6 +150,11 @@ class Ledger:
             slot = state['slot']
             if not slot or slot['owner'] != owner or slot['state'] != from_state:
                 return False
+            # Gemini capacity failures happen before any send. Keep the cooldown,
+            # but leave the daily failure budget available for a later run.
+            if from_state == 'working' and kind == 'model_temporarily_unavailable':
+                slot['attempts'] -= 1
+                slot['owner'] = None
             slot.update(state='skipped' if slot['attempts'] >= 3 else 'working', error=kind,
                         lease_until=(datetime.now(TZ) + timedelta(minutes=30)).isoformat())
             return True
